@@ -701,6 +701,24 @@
   }
   .lb-btn:hover { background: rgba(245,197,66,0.22); }
 
+  .help-btn {
+    background: rgba(255,255,255,0.06);
+    color: rgba(255,255,255,0.85);
+    border: 1px solid rgba(255,255,255,0.18);
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border-radius: 50%;
+    font-size: 15px;
+    font-weight: 800;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+  }
+  .help-btn:hover { background: rgba(255,255,255,0.14); color: #fff; }
+
   /* Modal */
   .modal-overlay {
     position: fixed;
@@ -775,6 +793,7 @@
     .lb-table { font-size: 12px; }
     .lb-table .date { display: none; }
     .lb-btn { font-size: 11px; padding: 5px 10px; }
+    .help-btn { width: 24px; height: 24px; font-size: 13px; }
     header h1 { font-size: 16px; }
   }
 </style>
@@ -784,6 +803,7 @@
   <header>
     <h1>♠ Udi's Hold'em Trainer</h1>
     <div class="header-right">
+      <button class="help-btn" id="openHelpBtn" title="How this trainer works" aria-label="Help">?</button>
       <button class="lb-btn" id="openLbBtn" title="View the weekly leaderboard">🏆 Leaderboard</button>
       <div class="score">Score <b id="correct">0</b> / <b id="total">0</b><span class="pct" id="pct"></span></div>
     </div>
@@ -859,36 +879,51 @@
     </div>
   </div>
 
-  <div class="info">
-    <details>
-      <summary>How the two modes work</summary>
-      <p><b>Practice</b> lets you pick one of the six scenarios below and drill it with unlimited hands — no timer, no test counter, just running accuracy.</p>
-      <p><b>Test</b> gives you 20 mixed hands (randomly drawn across all six scenarios). When you finish, you can add your score to the <b>weekly leaderboard</b> — it shows the top 10 scores from the past 7 days, saved in this browser across sessions. Names you've used before will appear as suggestions when you save your next score.</p>
-    </details>
-    <details>
-      <summary>Preflop — No action before you (RFI)</summary>
-      <p>Action folds to you. The decision is <b>open-raise</b> or <b>fold</b>. Calling (limping) into an unopened pot isn't a GTO action.</p>
-    </details>
-    <details>
-      <summary>Preflop — Facing an open-raise</summary>
-      <p>A player has opened to 2.5bb. <b>3-bet</b> with strongest + bluff blockers, <b>call</b> with middling-to-strong hands that flop well, or <b>fold</b>.</p>
-    </details>
-    <details>
-      <summary>Flop — You opened, BB called</summary>
-      <p>Decision: <b>c-bet</b> or <b>check</b>. Range-bet small on high-card dry boards; bet value + strong draws on wet textures; check marginal hands on connected boards.</p>
-    </details>
-    <details>
-      <summary>Flop — Facing a c-bet (you called in BB)</summary>
-      <p>Continue with pairs+, flush draws, open-enders, and strong gutshots; raise with sets/two-pair on wet boards; fold unpaired air.</p>
-    </details>
-    <details>
-      <summary>Turn — You opened, BB called flop</summary>
-      <p>Barrel with top-pair+, overpairs, sets, strong draws. Check-back marginal hands for pot control and range protection.</p>
-    </details>
-    <details>
-      <summary>River — You opened, BB called flop + turn</summary>
-      <p>Value-bet top-pair-good-kicker+; check marginal / missed draws for showdown value.</p>
-    </details>
+</div>
+
+<div class="modal-overlay" id="helpModal" role="dialog" aria-modal="true" aria-labelledby="helpModalTitle">
+  <div class="modal-card">
+    <button class="modal-close" id="closeHelpBtn" aria-label="Close">✕ Close</button>
+    <div class="info" id="helpModalBody">
+      <h3 id="helpModalTitle" style="margin:0 0 14px; color:var(--gold); font-size:16px;">How this trainer works</h3>
+      <details open>
+        <summary>Practice vs. Test</summary>
+        <p><b>Practice</b> lets you pick one of the six scenarios below and drill it with unlimited hands — no timer, no test counter, just running accuracy.</p>
+        <p><b>Test</b> gives you 20 mixed hands (randomly drawn across all six scenarios). When you finish, you can add your score to the <b>weekly leaderboard</b> — it shows the top 10 scores from the past 7 days. Names you've used before will appear as suggestions when you save your next score.</p>
+      </details>
+      <details>
+        <summary>Preflop — No action before you (RFI)</summary>
+        <p>Action folds to you. The decision is <b>open-raise</b> or <b>fold</b>. Calling (limping) into an unopened pot isn't a GTO action.</p>
+      </details>
+      <details>
+        <summary>Preflop — Facing an open-raise</summary>
+        <p>A player has opened to 2.5bb. <b>3-bet</b> with strongest + bluff blockers, <b>call</b> with middling-to-strong hands that flop well, or <b>fold</b>.</p>
+      </details>
+      <details>
+        <summary>Flop — You opened, BB called</summary>
+        <p>Decision: <b>c-bet</b> or <b>check</b>. Range-bet small on high-card dry boards; bet value + strong draws on wet textures; check marginal hands on connected boards.</p>
+      </details>
+      <details>
+        <summary>Flop — Facing a c-bet (you called in BB)</summary>
+        <p>Continue with pairs+, flush draws, open-enders, and strong gutshots; raise with sets/two-pair on wet boards; fold unpaired air.</p>
+      </details>
+      <details>
+        <summary>Turn — You opened, BB called flop</summary>
+        <p>Barrel with top-pair+, overpairs, sets, strong draws. Check-back marginal hands for pot control and range protection.</p>
+      </details>
+      <details>
+        <summary>River — You opened, BB called flop + turn</summary>
+        <p>Value-bet top-pair-good-kicker+; check marginal / missed draws for showdown value.</p>
+      </details>
+      <details>
+        <summary>Keyboard shortcuts</summary>
+        <p><b>F</b> Fold · <b>C</b> Call · <b>R</b> Raise · <b>K</b> Check · <b>B</b> Bet · <b>Space / Enter</b> Next hand · <b>Esc</b> Close this dialog</p>
+      </details>
+      <details>
+        <summary>About the "correct" answers</summary>
+        <p>Preflop ranges approximate published solver-derived GTO charts at 100bb. Postflop decisions use hand-written heuristics that mimic the broad conclusions solvers reach (range advantage, texture-based sizing, polarization). This is a pattern-recognition tool, not an exact solver — some marginal spots where a real solver would mix will be marked "wrong" here.</p>
+      </details>
+    </div>
   </div>
 </div>
 
@@ -1105,7 +1140,7 @@ const SEAT_ANGLES = {
   BTN: 30, SB: 70, BB: 110, UTG: 150,
   UTG1: 190, UTG2: 230, LJ: 270, HJ: 310, CO: 350
 };
-const SEAT_R = 44, DEALER_R = 34, CHIP_R = 26, CARD_R = 22;
+const SEAT_R = 44, DEALER_R = 34, CHIP_R = 26, CARD_R = 30;
 
 const RANKS = ['2','3','4','5','6','7','8','9','T','J','Q','K','A'];
 const RANK_IDX = {};
@@ -2282,11 +2317,26 @@ document.getElementById('lbModal').addEventListener('click', (e) => {
   if (e.target.id === 'lbModal') closeLeaderboardModal();
 });
 
+/* Help modal wiring */
+function openHelpModal() { document.getElementById('helpModal').classList.add('show'); }
+function closeHelpModal() { document.getElementById('helpModal').classList.remove('show'); }
+document.getElementById('openHelpBtn').addEventListener('click', openHelpModal);
+document.getElementById('closeHelpBtn').addEventListener('click', closeHelpModal);
+document.getElementById('helpModal').addEventListener('click', (e) => {
+  if (e.target.id === 'helpModal') closeHelpModal();
+});
+
 document.addEventListener('keydown', (e) => {
-  // Escape closes the leaderboard modal if open
-  if (e.key === 'Escape' && document.getElementById('lbModal').classList.contains('show')) {
-    closeLeaderboardModal();
-    return;
+  // Escape closes any open modal
+  if (e.key === 'Escape') {
+    if (document.getElementById('lbModal').classList.contains('show')) {
+      closeLeaderboardModal();
+      return;
+    }
+    if (document.getElementById('helpModal').classList.contains('show')) {
+      closeHelpModal();
+      return;
+    }
   }
   // Ignore key shortcuts while typing in the name field
   const target = e.target;
