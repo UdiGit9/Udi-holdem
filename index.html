@@ -1,0 +1,2326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Udi's Hold'em Trainer</title>
+<style>
+  :root {
+    --felt: #0e6b44;
+    --felt-dark: #073d26;
+    --rail: #3a1f10;
+    --rail-hi: #6b3d22;
+    --gold: #f5c542;
+    --red: #d62828;
+    --villain: #c0392b;
+    --bg: #0a1f17;
+    --text: #f4f1e8;
+    --muted: #a9b3ad;
+    --correct: #4ade80;
+    --wrong: #ef4444;
+    --card-bg: #fafaf5;
+    --accent: #6ea8ff;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+  .container {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 20px 12px 48px;
+  }
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+    gap: 10px;
+  }
+  header h1 {
+    font-size: 18px;
+    margin: 0;
+    letter-spacing: 0.3px;
+    color: var(--gold);
+  }
+  .score {
+    font-size: 13px;
+    color: var(--muted);
+    background: rgba(255,255,255,0.05);
+    padding: 6px 12px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+  .score b { color: var(--text); }
+  .score .pct { color: var(--gold); margin-left: 6px; }
+
+  /* App-mode toggle (Practice vs Test) */
+  .appmode-toggle {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 12px;
+    padding: 4px;
+    margin-bottom: 10px;
+  }
+  .appmode-btn {
+    padding: 12px 10px;
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    font-weight: 800;
+    font-size: 14px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    letter-spacing: 0.5px;
+  }
+  .appmode-btn small {
+    display: block;
+    font-weight: 500;
+    font-size: 10px;
+    opacity: 0.7;
+    margin-top: 2px;
+    letter-spacing: 0.3px;
+  }
+  .appmode-btn:hover:not(.active) { color: var(--text); }
+  .appmode-btn.active {
+    background: var(--accent);
+    color: #0a1f17;
+    box-shadow: 0 2px 8px rgba(110,168,255,0.35);
+  }
+
+  /* 6-mode grid toggle */
+  .mode-toggle {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 10px;
+    padding: 4px;
+    margin-bottom: 12px;
+  }
+  .mode-toggle.hidden { display: none; }
+  .mode-btn {
+    padding: 10px 6px;
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    font-weight: 700;
+    font-size: 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    line-height: 1.2;
+    text-align: center;
+  }
+  .mode-btn small {
+    display: block;
+    font-weight: 500;
+    font-size: 10px;
+    opacity: 0.75;
+    margin-top: 2px;
+    letter-spacing: 0.3px;
+  }
+  .mode-btn:hover:not(.active) { color: var(--text); background: rgba(255,255,255,0.04); }
+  .mode-btn.active {
+    background: var(--gold);
+    color: #0a1f17;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  }
+  .mode-btn.active small { opacity: 0.85; }
+
+  .progress-wrap { margin-bottom: 14px; }
+  .progress-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 6px;
+    letter-spacing: 0.3px;
+  }
+  .progress-row b { color: var(--gold); }
+  .progress-bar {
+    height: 6px;
+    background: rgba(255,255,255,0.07);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .progress-bar.hidden { visibility: hidden; height: 0; margin: 0; }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--gold) 0%, #ffd76a 100%);
+    width: 0%;
+    transition: width 0.3s ease;
+  }
+
+  /* Banner showing current mode within a test hand */
+  .test-mode-banner {
+    text-align: center;
+    padding: 6px 10px;
+    margin-bottom: 8px;
+    background: rgba(110,168,255,0.12);
+    border: 1px solid rgba(110,168,255,0.25);
+    border-radius: 8px;
+    font-size: 11px;
+    letter-spacing: 0.6px;
+    color: var(--accent);
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+  .test-mode-banner.hidden { display: none; }
+  .test-mode-banner .pill {
+    display: inline-block;
+    margin-left: 8px;
+    padding: 2px 10px;
+    background: rgba(245,197,66,0.18);
+    color: var(--gold);
+    border-radius: 999px;
+    font-size: 10px;
+  }
+
+  /* =======================
+     Poker Table
+     ======================= */
+  .table-wrap {
+    position: relative;
+    width: 100%;
+    max-width: 700px;
+    aspect-ratio: 1.55 / 1;
+    margin: 0 auto 10px;
+  }
+  .rail {
+    position: absolute;
+    inset: 10% 4%;
+    border-radius: 50%;
+    background: linear-gradient(145deg, var(--rail-hi), var(--rail));
+    padding: 10px;
+    box-shadow:
+      0 18px 40px rgba(0,0,0,0.55),
+      inset 0 2px 0 rgba(255,255,255,0.12),
+      inset 0 -2px 0 rgba(0,0,0,0.5);
+  }
+  .felt {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: radial-gradient(ellipse at center, var(--felt) 0%, var(--felt-dark) 100%);
+    box-shadow: inset 0 0 50px rgba(0,0,0,0.55);
+    position: relative;
+  }
+  .felt::before {
+    content: '';
+    position: absolute;
+    inset: 8%;
+    border-radius: 50%;
+    border: 1px dashed rgba(255,255,255,0.06);
+    pointer-events: none;
+  }
+  .table-text {
+    position: absolute;
+    top: 22%;
+    left: 50%;
+    transform: translate(-50%, 0);
+    color: rgba(255,255,255,0.8);
+    font-size: 12px;
+    text-align: center;
+    max-width: 72%;
+    line-height: 1.35;
+    pointer-events: none;
+  }
+  .table-text.preflop {
+    top: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 13px;
+    max-width: 60%;
+    line-height: 1.4;
+  }
+  .table-text b { color: var(--gold); }
+  .table-text .v { color: #ff8a8a; font-weight: 700; }
+  .pot-chip {
+    display: inline-block;
+    margin-top: 6px;
+    padding: 3px 10px;
+    background: rgba(0,0,0,0.35);
+    border-radius: 999px;
+    font-size: 10px;
+    color: rgba(255,255,255,0.7);
+    letter-spacing: 0.4px;
+  }
+
+  .overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  .seat {
+    position: absolute;
+    width: 68px;
+    height: 68px;
+    transform: translate(-50%, -50%);
+  }
+  .seat-puck {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: #1c1c1c;
+    border: 2px solid rgba(255,255,255,0.14);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255,255,255,0.7);
+    font-weight: 700;
+    font-size: 12px;
+    text-align: center;
+    line-height: 1.15;
+    box-shadow: 0 5px 12px rgba(0,0,0,0.5);
+    transition: all 0.2s ease;
+  }
+  .seat.hero .seat-puck {
+    background: linear-gradient(145deg, #ffd76a, #d9a820);
+    color: #0a1f17;
+    border-color: #ffe07d;
+    box-shadow: 0 0 26px rgba(245,197,66,0.65), 0 5px 12px rgba(0,0,0,0.5);
+    transform: scale(1.08);
+  }
+  .seat.villain .seat-puck {
+    background: linear-gradient(145deg, #e65c5c, #a02020);
+    color: #fff;
+    border-color: #ff8a8a;
+    box-shadow: 0 0 22px rgba(255,80,80,0.55), 0 5px 12px rgba(0,0,0,0.5);
+    transform: scale(1.08);
+  }
+  .seat.folded .seat-puck {
+    opacity: 0.32;
+    background: #141414;
+  }
+  .seat.folded .seat-puck::after {
+    content: '✕';
+    position: absolute;
+    color: var(--wrong);
+    font-size: 22px;
+    font-weight: 700;
+    opacity: 0.9;
+  }
+  .seat-label {
+    position: absolute;
+    top: -20px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    color: rgba(255,255,255,0.55);
+    white-space: nowrap;
+  }
+  .seat.hero .seat-label { color: var(--gold); font-size: 11px; }
+  .seat.villain .seat-label { color: #ff8a8a; font-size: 11px; }
+  .seat-status {
+    position: absolute;
+    bottom: -18px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 10px;
+    color: rgba(255,255,255,0.45);
+    white-space: nowrap;
+    letter-spacing: 0.4px;
+  }
+  .seat.hero .seat-status { color: var(--gold); font-weight: 700; }
+  .seat.villain .seat-status { color: #ff8a8a; font-weight: 700; }
+  .seat.folded .seat-status { color: #888; }
+
+  .dealer-btn {
+    position: absolute;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, white, #dcdcdc);
+    color: #222;
+    font-weight: 800;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transform: translate(-50%, -50%);
+    box-shadow: 0 3px 6px rgba(0,0,0,0.5), inset 0 0 0 2px rgba(0,0,0,0.08);
+    z-index: 3;
+  }
+
+  .raise-chip {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    padding: 4px 11px;
+    background: radial-gradient(circle at 30% 30%, #fff, #f0f0f0 70%, #cfcfcf);
+    color: #a02020;
+    font-weight: 800;
+    font-size: 11px;
+    border-radius: 999px;
+    border: 2px solid #a02020;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.45);
+    z-index: 3;
+    white-space: nowrap;
+    letter-spacing: 0.4px;
+  }
+
+  .hero-cards {
+    position: absolute;
+    display: flex;
+    gap: 5px;
+    transform: translate(-50%, -50%);
+    z-index: 4;
+    animation: dealIn 0.35s ease-out;
+  }
+  @keyframes dealIn {
+    from { transform: translate(-50%, -50%) scale(0.6); opacity: 0; }
+    to   { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+  }
+  .card-sm {
+    width: 48px;
+    height: 66px;
+    background: var(--card-bg);
+    border-radius: 5px;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.55);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    padding: 3px 0;
+  }
+  .card-sm.red { color: var(--red); }
+  .card-sm.black { color: #1a1a1a; }
+  .card-sm .rank { font-size: 20px; line-height: 1; }
+  .card-sm .suit { font-size: 22px; line-height: 1; margin-top: 2px; }
+
+  .board-cards {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    gap: 5px;
+    z-index: 3;
+    animation: dealIn 0.4s ease-out;
+  }
+  .card-board {
+    width: 44px;
+    height: 62px;
+    background: var(--card-bg);
+    border-radius: 5px;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.55);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    padding: 3px 0;
+  }
+  .card-board.red { color: var(--red); }
+  .card-board.black { color: #1a1a1a; }
+  .card-board .rank { font-size: 18px; line-height: 1; }
+  .card-board .suit { font-size: 20px; line-height: 1; margin-top: 2px; }
+
+  .action-area { margin-top: 6px; }
+  .hand-label {
+    text-align: center;
+    font-size: 13px;
+    color: rgba(255,255,255,0.55);
+    margin: 6px 0 14px;
+    letter-spacing: 1px;
+  }
+  .hand-label b { color: rgba(255,255,255,0.9); font-weight: 700; font-size: 15px; }
+  .hand-label .info-tag {
+    display: inline-block;
+    margin-left: 10px;
+    padding: 2px 9px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.06);
+    color: rgba(255,255,255,0.6);
+    font-size: 10px;
+    letter-spacing: 0.4px;
+    vertical-align: 2px;
+  }
+
+  .actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+  }
+  .actions.two-btn { grid-template-columns: 1fr 1fr; }
+  .btn {
+    padding: 14px 10px;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    color: white;
+    transition: transform 0.08s, filter 0.15s;
+  }
+  .btn:hover:not(:disabled) { filter: brightness(1.1); }
+  .btn:active:not(:disabled) { transform: translateY(1px); }
+  .btn:disabled { opacity: 0.55; cursor: default; }
+  .btn-fold  { background: #5a6268; }
+  .btn-call  { background: #2563eb; }
+  .btn-check { background: #1f8a55; }
+  .btn-raise { background: #dc2626; }
+  .btn-bet   { background: #dc2626; }
+  .btn .sub-label {
+    display: block;
+    font-size: 10px;
+    font-weight: 500;
+    opacity: 0.8;
+    margin-top: 2px;
+    letter-spacing: 0.3px;
+  }
+
+  .feedback {
+    min-height: 56px;
+    margin-top: 16px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    background: rgba(0,0,0,0.3);
+    font-size: 14px;
+    line-height: 1.5;
+    display: none;
+  }
+  .feedback.show { display: block; }
+  .feedback.correct { border-left: 4px solid var(--correct); }
+  .feedback.wrong { border-left: 4px solid var(--wrong); }
+  .feedback .head { font-weight: 700; margin-bottom: 4px; }
+  .feedback.correct .head { color: var(--correct); }
+  .feedback.wrong .head { color: var(--wrong); }
+  .feedback .tags {
+    margin-top: 6px;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.3px;
+  }
+  .feedback .tags span {
+    display: inline-block;
+    padding: 2px 8px;
+    margin-right: 5px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 4px;
+  }
+
+  .next-btn {
+    display: block;
+    margin: 16px auto 0;
+    padding: 10px 24px;
+    background: var(--gold);
+    color: #0a1f17;
+    border: none;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+    letter-spacing: 0.5px;
+  }
+  .next-btn:hover { filter: brightness(1.05); }
+
+  /* Results */
+  .results-wrap {
+    background: rgba(0,0,0,0.25);
+    border-radius: 16px;
+    padding: 28px 20px;
+    text-align: center;
+  }
+  .results-wrap h2 { margin: 0 0 6px; color: var(--gold); font-size: 24px; }
+  .final-score { font-size: 52px; font-weight: 800; margin: 10px 0 4px; color: var(--text); }
+  .final-pct { font-size: 20px; color: var(--gold); margin-bottom: 6px; }
+  .verdict { font-size: 15px; color: var(--muted); margin-bottom: 20px; }
+  .mistakes {
+    text-align: left;
+    background: rgba(0,0,0,0.3);
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin: 14px auto 18px;
+    max-width: 560px;
+    font-size: 13px;
+  }
+  .mistakes h3 {
+    margin: 0 0 10px; color: var(--wrong); font-size: 13px;
+    letter-spacing: 0.5px; font-weight: 700;
+  }
+  .mistakes ul { margin: 0; padding-left: 18px; line-height: 1.6; }
+  .mistakes li b { color: var(--text); }
+  .mistakes .empty { color: var(--correct); font-weight: 600; text-align: center; }
+
+  /* Name prompt */
+  .name-form {
+    background: rgba(0,0,0,0.3);
+    border-radius: 10px;
+    padding: 16px 18px;
+    margin: 14px auto 18px;
+    max-width: 460px;
+    text-align: center;
+  }
+  .name-form label {
+    display: block;
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+  }
+  .name-input-row {
+    display: flex;
+    gap: 8px;
+  }
+  .name-input-row input {
+    flex: 1;
+    padding: 12px 14px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: var(--text);
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.4px;
+  }
+  .name-input-row input:focus { outline: none; border-color: var(--accent); }
+  .name-input-row button {
+    padding: 0 18px;
+    background: var(--gold);
+    color: #0a1f17;
+    border: none;
+    border-radius: 8px;
+    font-weight: 800;
+    font-size: 13px;
+    cursor: pointer;
+    white-space: nowrap;
+    letter-spacing: 0.5px;
+  }
+  .name-input-row button:hover { filter: brightness(1.05); }
+
+  /* Leaderboard */
+  .leaderboard {
+    background: rgba(0,0,0,0.3);
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin: 14px auto 18px;
+    max-width: 560px;
+    text-align: left;
+  }
+  .leaderboard h3 {
+    margin: 0 0 10px;
+    color: var(--gold);
+    font-size: 13px;
+    letter-spacing: 0.6px;
+    font-weight: 800;
+    text-align: center;
+    text-transform: uppercase;
+  }
+  .lb-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  .lb-table th {
+    text-align: left;
+    padding: 6px 8px;
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    font-weight: 700;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+  .lb-table td {
+    padding: 8px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .lb-table .rank { width: 36px; font-weight: 800; color: var(--muted); }
+  .lb-table .name { font-weight: 700; }
+  .lb-table .pct  { color: var(--gold); font-weight: 700; text-align: right; }
+  .lb-table .score { color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+  .lb-table .date  { color: var(--muted); text-align: right; font-size: 11px; }
+  .lb-table tr.you {
+    background: rgba(245,197,66,0.10);
+  }
+  .lb-table tr.you .name::after {
+    content: ' ← you';
+    font-size: 10px;
+    color: var(--gold);
+    margin-left: 4px;
+    letter-spacing: 0.5px;
+  }
+  .lb-table .medal { margin-right: 4px; }
+  .lb-empty { color: var(--muted); font-style: italic; text-align: center; padding: 12px; }
+
+  .results-btn-row {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-top: 10px;
+  }
+  .results-btn {
+    padding: 12px 22px;
+    background: var(--gold);
+    color: #0a1f17;
+    border: none;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+    letter-spacing: 0.5px;
+  }
+  .results-btn.ghost {
+    background: rgba(255,255,255,0.08);
+    color: var(--text);
+  }
+  .results-btn:hover { filter: brightness(1.1); }
+
+  /* Header right cluster (leaderboard button + score) */
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .lb-btn {
+    background: rgba(245,197,66,0.12);
+    color: var(--gold);
+    border: 1px solid rgba(245,197,66,0.25);
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    letter-spacing: 0.4px;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+  }
+  .lb-btn:hover { background: rgba(245,197,66,0.22); }
+
+  /* Modal */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.78);
+    z-index: 100;
+    display: none;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 40px 12px 20px;
+    overflow-y: auto;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal-card {
+    background: #122b20;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 14px;
+    padding: 22px 20px 20px;
+    max-width: 560px;
+    width: 100%;
+    position: relative;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+  }
+  .modal-close {
+    position: absolute;
+    top: 10px; right: 10px;
+    background: rgba(255,255,255,0.06);
+    border: none;
+    color: var(--text);
+    font-size: 13px;
+    cursor: pointer;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-weight: 700;
+  }
+  .modal-close:hover { background: rgba(255,255,255,0.12); }
+  .modal-card .leaderboard {
+    margin: 14px 0 0;
+    background: rgba(0,0,0,0.25);
+  }
+
+  .info {
+    margin-top: 20px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .info details { background: rgba(255,255,255,0.03); padding: 10px 14px; border-radius: 8px; margin-bottom: 6px; }
+  .info summary { cursor: pointer; color: var(--gold); font-weight: 600; }
+  .info p { margin: 10px 0 4px; line-height: 1.5; }
+
+  @media (max-width: 560px) {
+    .seat { width: 52px; height: 52px; }
+    .seat-puck { font-size: 10px; }
+    .seat-label { font-size: 9px; top: -16px; }
+    .seat-status { font-size: 9px; bottom: -15px; }
+    .card-sm { width: 38px; height: 52px; }
+    .card-sm .rank { font-size: 16px; }
+    .card-sm .suit { font-size: 18px; }
+    .card-board { width: 30px; height: 44px; }
+    .card-board .rank { font-size: 13px; }
+    .card-board .suit { font-size: 15px; }
+    .dealer-btn { width: 20px; height: 20px; font-size: 10px; }
+    .raise-chip { font-size: 10px; padding: 3px 8px; }
+    .btn { font-size: 13px; padding: 12px 4px; }
+    .btn .sub-label { font-size: 9px; }
+    .table-text { font-size: 10px; max-width: 78%; }
+    .table-text.preflop { font-size: 11px; max-width: 62%; }
+    .pot-chip { font-size: 9px; padding: 2px 8px; }
+    .mode-btn { font-size: 11px; padding: 8px 4px; }
+    .mode-btn small { font-size: 9px; }
+    .appmode-btn { font-size: 13px; padding: 10px 6px; }
+    .lb-table { font-size: 12px; }
+    .lb-table .date { display: none; }
+    .lb-btn { font-size: 11px; padding: 5px 10px; }
+    header h1 { font-size: 16px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>♠ Udi's Hold'em Trainer</h1>
+    <div class="header-right">
+      <button class="lb-btn" id="openLbBtn" title="View the weekly leaderboard">🏆 Leaderboard</button>
+      <div class="score">Score <b id="correct">0</b> / <b id="total">0</b><span class="pct" id="pct"></span></div>
+    </div>
+  </header>
+
+  <div class="appmode-toggle">
+    <button class="appmode-btn active" data-appmode="practice">Practice<small>Choose a mode · unlimited hands</small></button>
+    <button class="appmode-btn" data-appmode="test">Test<small>20 mixed hands · leaderboard</small></button>
+  </div>
+
+  <div class="mode-toggle" id="modeToggle">
+    <button class="mode-btn active" data-mode="rfi">Preflop<small>No action</small></button>
+    <button class="mode-btn" data-mode="vs_raise">Preflop<small>vs open-raise</small></button>
+    <button class="mode-btn" data-mode="flop_aggressor">Flop<small>You opened</small></button>
+    <button class="mode-btn" data-mode="flop_defender">Flop<small>vs c-bet</small></button>
+    <button class="mode-btn" data-mode="turn_barrel">Turn<small>You opened</small></button>
+    <button class="mode-btn" data-mode="river_barrel">River<small>You opened</small></button>
+  </div>
+
+  <div class="test-mode-banner hidden" id="testBanner">
+    Test in progress <span class="pill" id="testBannerPill">—</span>
+  </div>
+
+  <div class="progress-wrap">
+    <div class="progress-row">
+      <span id="progressLeft">Hand <b id="handNum">1</b></span>
+      <span id="progressRight"></span>
+    </div>
+    <div class="progress-bar" id="progressBar"><div class="progress-fill" id="progressFill"></div></div>
+  </div>
+
+  <!-- GAME VIEW -->
+  <div id="gameView">
+    <div class="table-wrap" id="tableWrap">
+      <div class="rail">
+        <div class="felt">
+          <div class="table-text preflop" id="tableText">Action folds to you</div>
+        </div>
+      </div>
+      <div class="overlay" id="overlay"></div>
+    </div>
+
+    <div class="action-area">
+      <div class="hand-label">Hero holds: <b id="handLabel">—</b><span class="info-tag" id="handTag" style="display:none"></span></div>
+      <div class="actions" id="actionsRow"></div>
+      <div class="feedback" id="feedback"></div>
+      <button class="next-btn" id="nextBtn" style="display:none">Next Hand →</button>
+    </div>
+  </div>
+
+  <!-- RESULTS VIEW (test mode only) -->
+  <div class="results-wrap" id="resultsView" style="display:none">
+    <h2>Test Complete</h2>
+    <div class="final-score"><span id="finalCorrect">0</span> / <span id="finalTotal">20</span></div>
+    <div class="final-pct" id="finalPct">0%</div>
+    <div class="verdict" id="verdict"></div>
+    <div class="mistakes" id="mistakes"></div>
+
+    <div class="name-form" id="nameForm">
+      <label for="nameInput">Add your result to this week's leaderboard</label>
+      <div class="name-input-row">
+        <input type="text" id="nameInput" maxlength="24" placeholder="Your name" autocomplete="off" list="pastNames" />
+        <datalist id="pastNames"></datalist>
+        <button id="saveScoreBtn">Save</button>
+      </div>
+    </div>
+
+    <div class="leaderboard" id="leaderboard" style="display:none"></div>
+
+    <div class="results-btn-row">
+      <button class="results-btn" id="restartBtn">Start New Test</button>
+      <button class="results-btn ghost" id="toPracticeBtn">Back to Practice</button>
+    </div>
+  </div>
+
+  <div class="info">
+    <details>
+      <summary>How the two modes work</summary>
+      <p><b>Practice</b> lets you pick one of the six scenarios below and drill it with unlimited hands — no timer, no test counter, just running accuracy.</p>
+      <p><b>Test</b> gives you 20 mixed hands (randomly drawn across all six scenarios). When you finish, you can add your score to the <b>weekly leaderboard</b> — it shows the top 10 scores from the past 7 days, saved in this browser across sessions. Names you've used before will appear as suggestions when you save your next score.</p>
+    </details>
+    <details>
+      <summary>Preflop — No action before you (RFI)</summary>
+      <p>Action folds to you. The decision is <b>open-raise</b> or <b>fold</b>. Calling (limping) into an unopened pot isn't a GTO action.</p>
+    </details>
+    <details>
+      <summary>Preflop — Facing an open-raise</summary>
+      <p>A player has opened to 2.5bb. <b>3-bet</b> with strongest + bluff blockers, <b>call</b> with middling-to-strong hands that flop well, or <b>fold</b>.</p>
+    </details>
+    <details>
+      <summary>Flop — You opened, BB called</summary>
+      <p>Decision: <b>c-bet</b> or <b>check</b>. Range-bet small on high-card dry boards; bet value + strong draws on wet textures; check marginal hands on connected boards.</p>
+    </details>
+    <details>
+      <summary>Flop — Facing a c-bet (you called in BB)</summary>
+      <p>Continue with pairs+, flush draws, open-enders, and strong gutshots; raise with sets/two-pair on wet boards; fold unpaired air.</p>
+    </details>
+    <details>
+      <summary>Turn — You opened, BB called flop</summary>
+      <p>Barrel with top-pair+, overpairs, sets, strong draws. Check-back marginal hands for pot control and range protection.</p>
+    </details>
+    <details>
+      <summary>River — You opened, BB called flop + turn</summary>
+      <p>Value-bet top-pair-good-kicker+; check marginal / missed draws for showdown value.</p>
+    </details>
+  </div>
+</div>
+
+<div class="modal-overlay" id="lbModal" role="dialog" aria-modal="true" aria-labelledby="lbModalTitle">
+  <div class="modal-card">
+    <button class="modal-close" id="closeLbBtn" aria-label="Close">✕ Close</button>
+    <div id="lbModalBody" class="leaderboard"></div>
+  </div>
+</div>
+
+<script>
+/* ==========================================================
+   RFI ranges
+   ========================================================== */
+const RFI_RANGES = {
+  UTG: new Set([
+    '22','33','44','55','66','77','88','99','TT','JJ','QQ','KK','AA',
+    'A4s','A5s','A9s','ATs','AJs','AQs','AKs',
+    'KTs','KJs','KQs',
+    'QTs','QJs',
+    'J9s','JTs',
+    'T9s','98s',
+    'AJo','AQo','AKo','KQo'
+  ]),
+  UTG1: new Set([
+    '22','33','44','55','66','77','88','99','TT','JJ','QQ','KK','AA',
+    'A3s','A4s','A5s','A8s','A9s','ATs','AJs','AQs','AKs',
+    'K9s','KTs','KJs','KQs',
+    'Q9s','QTs','QJs',
+    'J9s','JTs',
+    'T8s','T9s',
+    '98s','87s','76s',
+    'ATo','AJo','AQo','AKo','KJo','KQo','QJo'
+  ]),
+  UTG2: new Set([
+    '22','33','44','55','66','77','88','99','TT','JJ','QQ','KK','AA',
+    'A2s','A3s','A4s','A5s','A7s','A8s','A9s','ATs','AJs','AQs','AKs',
+    'K8s','K9s','KTs','KJs','KQs',
+    'Q9s','QTs','QJs',
+    'J8s','J9s','JTs',
+    'T8s','T9s',
+    '97s','98s',
+    '86s','87s',
+    '75s','76s',
+    '65s',
+    'ATo','AJo','AQo','AKo','KTo','KJo','KQo','QJo'
+  ]),
+  LJ: new Set([
+    '22','33','44','55','66','77','88','99','TT','JJ','QQ','KK','AA',
+    'A2s','A3s','A4s','A5s','A6s','A7s','A8s','A9s','ATs','AJs','AQs','AKs',
+    'K7s','K8s','K9s','KTs','KJs','KQs',
+    'Q8s','Q9s','QTs','QJs',
+    'J8s','J9s','JTs',
+    'T8s','T9s',
+    '97s','98s',
+    '86s','87s',
+    '75s','76s',
+    '65s','54s',
+    'A9o','ATo','AJo','AQo','AKo','KTo','KJo','KQo','QTo','QJo','JTo'
+  ]),
+  HJ: new Set([
+    '22','33','44','55','66','77','88','99','TT','JJ','QQ','KK','AA',
+    'A2s','A3s','A4s','A5s','A6s','A7s','A8s','A9s','ATs','AJs','AQs','AKs',
+    'K6s','K7s','K8s','K9s','KTs','KJs','KQs',
+    'Q7s','Q8s','Q9s','QTs','QJs',
+    'J7s','J8s','J9s','JTs',
+    'T7s','T8s','T9s',
+    '96s','97s','98s',
+    '86s','87s',
+    '75s','76s',
+    '65s','54s',
+    'A8o','A9o','ATo','AJo','AQo','AKo',
+    'KTo','KJo','KQo',
+    'QTo','QJo','JTo'
+  ]),
+  CO: new Set([
+    '22','33','44','55','66','77','88','99','TT','JJ','QQ','KK','AA',
+    'A2s','A3s','A4s','A5s','A6s','A7s','A8s','A9s','ATs','AJs','AQs','AKs',
+    'K4s','K5s','K6s','K7s','K8s','K9s','KTs','KJs','KQs',
+    'Q6s','Q7s','Q8s','Q9s','QTs','QJs',
+    'J7s','J8s','J9s','JTs',
+    'T7s','T8s','T9s',
+    '96s','97s','98s',
+    '85s','86s','87s',
+    '74s','75s','76s',
+    '64s','65s','53s','54s',
+    'A7o','A8o','A9o','ATo','AJo','AQo','AKo',
+    'K9o','KTo','KJo','KQo',
+    'Q9o','QTo','QJo',
+    'J9o','JTo','T9o'
+  ]),
+  BTN: new Set([
+    '22','33','44','55','66','77','88','99','TT','JJ','QQ','KK','AA',
+    'A2s','A3s','A4s','A5s','A6s','A7s','A8s','A9s','ATs','AJs','AQs','AKs',
+    'K2s','K3s','K4s','K5s','K6s','K7s','K8s','K9s','KTs','KJs','KQs',
+    'Q4s','Q5s','Q6s','Q7s','Q8s','Q9s','QTs','QJs',
+    'J6s','J7s','J8s','J9s','JTs',
+    'T6s','T7s','T8s','T9s',
+    '95s','96s','97s','98s',
+    '84s','85s','86s','87s',
+    '74s','75s','76s',
+    '63s','64s','65s',
+    '53s','54s','43s',
+    'A2o','A3o','A4o','A5o','A6o','A7o','A8o','A9o','ATo','AJo','AQo','AKo',
+    'K7o','K8o','K9o','KTo','KJo','KQo',
+    'Q8o','Q9o','QTo','QJo',
+    'J8o','J9o','JTo',
+    'T8o','T9o',
+    '98o','87o','76o'
+  ]),
+  SB: new Set([
+    '22','33','44','55','66','77','88','99','TT','JJ','QQ','KK','AA',
+    'A2s','A3s','A4s','A5s','A6s','A7s','A8s','A9s','ATs','AJs','AQs','AKs',
+    'K2s','K3s','K4s','K5s','K6s','K7s','K8s','K9s','KTs','KJs','KQs',
+    'Q5s','Q6s','Q7s','Q8s','Q9s','QTs','QJs',
+    'J7s','J8s','J9s','JTs',
+    'T7s','T8s','T9s',
+    '96s','97s','98s',
+    '85s','86s','87s',
+    '75s','76s','64s','65s',
+    '53s','54s',
+    'A2o','A3o','A4o','A5o','A6o','A7o','A8o','A9o','ATo','AJo','AQo','AKo',
+    'K8o','K9o','KTo','KJo','KQo',
+    'Q9o','QTo','QJo',
+    'J9o','JTo','T9o'
+  ])
+};
+
+const VS_OPEN_RANGES = {
+  UTG1: {
+    threeBet: new Set(['QQ','KK','AA','AKs','AKo','A5s']),
+    call:     new Set(['TT','JJ','AQs','AJs','KQs'])
+  },
+  UTG2: {
+    threeBet: new Set(['QQ','KK','AA','AKs','AKo','AQs','A5s','A4s']),
+    call:     new Set(['99','TT','JJ','AJs','ATs','KQs','KJs','QJs','JTs','AQo'])
+  },
+  LJ: {
+    threeBet: new Set(['JJ','QQ','KK','AA','AKs','AQs','AKo','A5s','A4s','KQs']),
+    call:     new Set(['77','88','99','TT','ATs','AJs','KJs','QJs','QTs','JTs','T9s','98s','AQo'])
+  },
+  HJ: {
+    threeBet: new Set(['JJ','QQ','KK','AA','AKs','AQs','AKo','A5s','A4s','KQs']),
+    call:     new Set([
+      '22','33','44','55','66','77','88','99','TT',
+      'A9s','ATs','AJs','KJs','QTs','QJs','J9s','JTs',
+      'T9s','98s','87s','76s','AQo','AJo'
+    ])
+  },
+  CO: {
+    threeBet: new Set(['JJ','QQ','KK','AA','AKs','AQs','AKo','A5s','A4s','KQs']),
+    call:     new Set([
+      '22','33','44','55','66','77','88','99','TT',
+      'A8s','A9s','ATs','AJs','KTs','KJs','Q9s','QTs','QJs',
+      'J9s','JTs','T8s','T9s','98s','87s','76s','65s','AJo','AQo','KQo'
+    ])
+  },
+  BTN: {
+    threeBet: new Set(['JJ','QQ','KK','AA','AKs','AQs','AKo','AQo','A5s','A4s']),
+    call:     new Set([
+      '22','33','44','55','66','77','88','99','TT',
+      'A6s','A7s','A8s','A9s','ATs','AJs','K9s','KTs','KJs','KQs',
+      'Q9s','QTs','QJs','J8s','J9s','JTs','T8s','T9s',
+      '97s','98s','86s','87s','76s','65s','54s','ATo','AJo','KJo','KQo','QJo'
+    ])
+  },
+  SB: {
+    threeBet: new Set([
+      '99','TT','JJ','QQ','KK','AA',
+      'AJs','AQs','AKs','KQs','AQo','AKo',
+      'A5s','A4s','A3s','A2s'
+    ]),
+    call: new Set([])
+  },
+  BB: {
+    threeBet: new Set([
+      'TT','JJ','QQ','KK','AA',
+      'AQs','AKs','AKo','AQo','KQs','A5s','A4s','A3s'
+    ]),
+    call: new Set([
+      '22','33','44','55','66','77','88','99',
+      'A2s','A6s','A7s','A8s','A9s','ATs','AJs',
+      'K2s','K3s','K4s','K5s','K6s','K7s','K8s','K9s','KTs','KJs',
+      'Q5s','Q6s','Q7s','Q8s','Q9s','QTs','QJs',
+      'J6s','J7s','J8s','J9s','JTs','T7s','T8s','T9s',
+      '97s','98s','86s','87s','75s','76s','65s','54s',
+      'ATo','AJo','KTo','KJo','KQo','QTo','QJo','JTo'
+    ])
+  }
+};
+
+const BETTING_ORDER = ['UTG','UTG1','UTG2','LJ','HJ','CO','BTN','SB','BB'];
+const HERO_RFI           = ['UTG','UTG1','UTG2','LJ','HJ','CO','BTN','SB'];
+const HERO_VS_RAISE      = ['UTG1','UTG2','LJ','HJ','CO','BTN','SB','BB'];
+const HERO_POSTFLOP_AGGR = ['UTG','UTG1','UTG2','LJ','HJ','CO','BTN','SB'];
+
+const ALL_MODES = ['rfi','vs_raise','flop_aggressor','flop_defender','turn_barrel','river_barrel'];
+
+const POSITION_SHORT = {
+  UTG: 'UTG', UTG1: 'UTG+1', UTG2: 'UTG+2', LJ: 'LJ',
+  HJ: 'HJ', CO: 'CO', BTN: 'BTN', SB: 'SB', BB: 'BB'
+};
+
+const MODE_SHORT_LABEL = {
+  rfi:             'Preflop / No action',
+  vs_raise:        'Preflop / vs Raise',
+  flop_aggressor:  'Flop / You opened',
+  flop_defender:   'Flop / vs C-bet',
+  turn_barrel:     'Turn / You opened',
+  river_barrel:    'River / You opened'
+};
+
+const SEAT_ANGLES = {
+  BTN: 30, SB: 70, BB: 110, UTG: 150,
+  UTG1: 190, UTG2: 230, LJ: 270, HJ: 310, CO: 350
+};
+const SEAT_R = 44, DEALER_R = 34, CHIP_R = 26, CARD_R = 22;
+
+const RANKS = ['2','3','4','5','6','7','8','9','T','J','Q','K','A'];
+const RANK_IDX = {};
+RANKS.forEach((r, i) => RANK_IDX[r] = i);
+const SUITS = ['s','h','d','c'];
+const SUIT_CHAR = { s: '♠', h: '♥', d: '♦', c: '♣' };
+const SUIT_COLOR = { s: 'black', c: 'black', h: 'red', d: 'red' };
+
+const TEST_LENGTH = 20;
+const LEADERBOARD_KEY = 'holdemGtoLeaderboard_v1';
+const LEADERBOARD_STORAGE_CAP = 200; // how many entries we keep on disk
+const LEADERBOARD_DISPLAY = 10;       // how many we show
+const WEEK_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+
+/* ==========================================================
+   Shared leaderboard (JSONBin.io)
+   ----------------------------------------------------------
+   To turn on cross-device syncing:
+     1. Sign up (free) at https://jsonbin.io
+     2. Click "Create Bin". Paste  {"entries":[]}  as the content. Save.
+     3. Copy the Bin ID (shown on the bin page, e.g. 6510a3b7c0e7653a0571d88f).
+     4. Open Dashboard → API Keys, copy your X-Master-Key.
+     5. Paste them into CLOUD below and redeploy.
+   Leave either field blank to fall back to per-device localStorage.
+   ========================================================== */
+const CLOUD = {
+  binId: '69e8d5f7aaba882197274314',
+  masterKey: '$2a$10$iC.WYZbTN5V1edfhziW18.ggOlJpblLMiAfD2myHYgqpm/Bfb9hCK',
+};
+function cloudEnabled() { return !!(CLOUD.binId && CLOUD.masterKey); }
+
+/* ==========================================================
+   Sarcasm kit — variety keeps a 20-hand test from feeling scripted
+   ========================================================== */
+const OPENERS_CORRECT = [
+  "Nailed it.",
+  "Solver-approved.",
+  "Textbook.",
+  "Yes — obviously.",
+  "Look at you, playing real poker.",
+  "The math gods nod.",
+  "Correct. Don't get cocky.",
+  "Crushed it.",
+  "Clean.",
+  "Yep, that's the play."
+];
+const OPENERS_WRONG = [
+  "Oof.",
+  "Bold choice. Incorrect, but bold.",
+  "Your opponents just sent a thank-you note.",
+  "Swing and a miss.",
+  "Creative. Also wrong.",
+  "The solver would like a word.",
+  "That's a leak with your name on it.",
+  "Somewhere, a GTO bot just shed a tear.",
+  "Not your finest moment.",
+  "That one's going on the scouting report."
+];
+
+/* ==========================================================
+   State
+   ========================================================== */
+let appMode = 'practice'; // 'practice' | 'test'
+let mode = 'rfi';         // current scenario (practice: user-chosen; test: randomized per hand)
+let current = null;
+let score = { correct: 0, total: 0 };
+let handNum = 0;
+let locked = false;
+let mistakes = [];
+let lastTestResult = null; // used by leaderboard flow to highlight latest entry
+
+/* ==========================================================
+   Helpers
+   ========================================================== */
+function randChoice(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+function randInt(n) { return Math.floor(Math.random() * n); }
+
+function polar(angleDeg, radiusPct) {
+  const rad = (angleDeg * Math.PI) / 180;
+  return { x: 50 + radiusPct * Math.cos(rad), y: 50 + radiusPct * Math.sin(rad) };
+}
+
+function handToString(c1, c2) {
+  const r1 = c1[0], s1 = c1[1], r2 = c2[0], s2 = c2[1];
+  if (r1 === r2) return r1 + r2;
+  const i1 = RANK_IDX[r1], i2 = RANK_IDX[r2];
+  const hi = i1 > i2 ? r1 : r2;
+  const lo = i1 > i2 ? r2 : r1;
+  return hi + lo + (s1 === s2 ? 's' : 'o');
+}
+
+function dealHandRandom() {
+  const r1 = randChoice(RANKS), s1 = randChoice(SUITS);
+  let r2, s2;
+  do { r2 = randChoice(RANKS); s2 = randChoice(SUITS); }
+  while (r1 === r2 && s1 === s2);
+  return [r1 + s1, r2 + s2];
+}
+
+function cardsFromHandStr(h) {
+  if (h.length === 2) {
+    const r = h[0];
+    const suits = [...SUITS];
+    const s1 = suits.splice(randInt(suits.length), 1)[0];
+    const s2 = suits.splice(randInt(suits.length), 1)[0];
+    return [r + s1, r + s2];
+  }
+  const r1 = h[0], r2 = h[1], kind = h[2];
+  if (kind === 's') {
+    const s = randChoice(SUITS);
+    return [r1 + s, r2 + s];
+  } else {
+    const suits = [...SUITS];
+    const s1 = suits.splice(randInt(suits.length), 1)[0];
+    const s2 = suits.splice(randInt(suits.length), 1)[0];
+    return [r1 + s1, r2 + s2];
+  }
+}
+
+function randHandFromRange(rangeSet) {
+  const weighted = [];
+  for (const h of rangeSet) {
+    let w = 12;
+    if (h.length === 2) w = 6;
+    else if (h[2] === 's') w = 4;
+    for (let i = 0; i < w; i++) weighted.push(h);
+  }
+  const hStr = randChoice(weighted);
+  return { handStr: hStr, cards: cardsFromHandStr(hStr) };
+}
+
+function dealBoard(holeCards, n) {
+  const used = new Set(holeCards);
+  const board = [];
+  while (board.length < n) {
+    const r = randChoice(RANKS), s = randChoice(SUITS);
+    const c = r + s;
+    if (!used.has(c)) { used.add(c); board.push(c); }
+  }
+  return board;
+}
+
+function validVillainsFor(heroPos) {
+  const heroIdx = BETTING_ORDER.indexOf(heroPos);
+  return BETTING_ORDER.filter((p, i) => i < heroIdx && p !== 'BB');
+}
+
+function seatStates(heroPos, villainPos) {
+  const heroIdx = BETTING_ORDER.indexOf(heroPos);
+  const states = {};
+  BETTING_ORDER.forEach((pos, i) => {
+    if (pos === heroPos) states[pos] = 'hero';
+    else if (villainPos && pos === villainPos) states[pos] = 'villain';
+    else if (i < heroIdx) states[pos] = 'folded';
+    else states[pos] = 'waiting';
+  });
+  return states;
+}
+
+function seatStatesPostflop(heroPos, villainPos) {
+  const states = {};
+  BETTING_ORDER.forEach(pos => {
+    if (pos === heroPos) states[pos] = 'hero';
+    else if (pos === villainPos) states[pos] = 'villain';
+    else states[pos] = 'folded';
+  });
+  return states;
+}
+
+/* ==========================================================
+   Hand evaluator
+   ========================================================== */
+function parseCard(c) { return { rank: c[0], suit: c[1], r: RANK_IDX[c[0]] }; }
+
+function evaluatePostflop(holeStrs, boardStrs) {
+  const hole = holeStrs.map(parseCard);
+  const board = boardStrs.map(parseCard);
+  const all = hole.concat(board);
+
+  const rc = {};
+  all.forEach(c => rc[c.r] = (rc[c.r] || 0) + 1);
+
+  const sc = {};
+  all.forEach(c => sc[c.suit] = (sc[c.suit] || 0) + 1);
+
+  const boardRanks = board.map(c => c.r);
+  const boardUniq = [...new Set(boardRanks)].sort((a, b) => b - a);
+  const topBoard = boardUniq[0];
+  const secondBoard = boardUniq[1];
+  const lastBoard = boardUniq[boardUniq.length - 1];
+
+  const heroRanks = hole.map(c => c.r).sort((a, b) => b - a);
+  const heroIsPocket = heroRanks[0] === heroRanks[1];
+
+  const flushSuit = Object.keys(sc).find(s => sc[s] >= 5);
+  const heroContribFlush = flushSuit && hole.some(c => c.suit === flushSuit);
+
+  const fdSuit = Object.keys(sc).find(s => sc[s] === 4);
+  const heroContribFD = fdSuit && hole.some(c => c.suit === fdSuit);
+
+  const uniqRanks = [...new Set(all.map(c => c.r))].sort((a, b) => b - a);
+  function findStraightTop(ranks) {
+    const set = new Set(ranks);
+    if (set.has(12)) set.add(-1);
+    for (let top = 12; top >= 3; top--) {
+      let ok = true;
+      for (let i = 0; i < 5; i++) {
+        if (!set.has(top - i)) { ok = false; break; }
+      }
+      if (ok) return top;
+    }
+    return null;
+  }
+  const straightTop = findStraightTop(uniqRanks);
+
+  const heroRankSet = new Set(heroRanks);
+  function findStraightDraws(ranks) {
+    const set = new Set(ranks);
+    if (set.has(12)) set.add(-1);
+    let oesd = false, gut = false;
+    for (let top = 12; top >= 3; top--) {
+      const window = [top, top - 1, top - 2, top - 3, top - 4];
+      const present = window.filter(v => set.has(v));
+      if (present.length !== 4) continue;
+      const heroIn = window.some(v => heroRankSet.has(v) || (v === -1 && heroRankSet.has(12)));
+      if (!heroIn) continue;
+      const pd = [...present].sort((a, b) => b - a);
+      const isFourConsec = pd[0] - pd[3] === 3;
+      if (isFourConsec) {
+        if (pd[0] < 12 && pd[3] > 0) oesd = true;
+        else gut = true;
+      } else {
+        gut = true;
+      }
+    }
+    return { oesd, gut };
+  }
+  const sDraws = straightTop !== null ? { oesd: false, gut: false } : findStraightDraws(uniqRanks);
+
+  const tripRanks = Object.keys(rc).filter(r => rc[r] === 3).map(Number).sort((a, b) => b - a);
+  const quadRank = Object.keys(rc).find(r => rc[r] === 4);
+  const pairRanks = Object.keys(rc).filter(r => rc[r] === 2).map(Number).sort((a, b) => b - a);
+
+  let category = 'high_card', kicker = null;
+
+  function bestKicker(heroRs, pairR) {
+    const k = heroRs.find(r => r !== pairR);
+    if (k === undefined) return null;
+    if (k === 12) return 'top';
+    if (k >= 10) return 'good';
+    if (k >= 8) return 'medium';
+    return 'weak';
+  }
+
+  if (flushSuit && straightTop !== null && heroContribFlush) category = 'straight_flush';
+  else if (quadRank) category = 'quads';
+  else if (tripRanks.length >= 1 && (tripRanks.length >= 2 || pairRanks.length >= 1)) category = 'full_house';
+  else if (flushSuit && heroContribFlush) category = 'flush';
+  else if (straightTop !== null) category = 'straight';
+  else if (tripRanks.length >= 1) {
+    const t = tripRanks[0];
+    if (heroIsPocket && heroRanks[0] === t) category = 'set';
+    else category = 'trips';
+  } else if (pairRanks.length >= 2) {
+    const heroContrib = pairRanks.filter(r => heroRanks.includes(r));
+    if (heroIsPocket) {
+      const pp = heroRanks[0];
+      if (pp > topBoard) category = 'two_pair_overpair';
+      else category = 'under_pair_w_board_pair';
+    } else if (heroContrib.length >= 2) {
+      category = 'two_pair';
+    } else if (heroContrib.length === 1) {
+      const hr = heroContrib[0];
+      if (hr === topBoard) { category = 'top_pair'; kicker = bestKicker(heroRanks, hr); }
+      else if (hr === secondBoard) category = 'middle_pair';
+      else category = 'bottom_pair';
+    } else {
+      category = 'ace_high_or_worse';
+    }
+  } else if (pairRanks.length === 1) {
+    const p = pairRanks[0];
+    if (heroIsPocket && heroRanks[0] === p) {
+      if (p > topBoard) category = 'overpair';
+      else category = 'under_pair';
+    } else if (heroRanks.includes(p)) {
+      if (p === topBoard) { category = 'top_pair'; kicker = bestKicker(heroRanks, p); }
+      else if (p === secondBoard) category = 'middle_pair';
+      else category = 'bottom_pair';
+    } else {
+      category = 'ace_high_or_worse';
+    }
+  } else {
+    if (heroIsPocket) category = 'under_pair';
+    else category = 'ace_high_or_worse';
+  }
+
+  if (category === 'ace_high_or_worse') {
+    if (heroRanks.includes(12)) category = 'ace_high';
+    else category = 'high_card';
+  }
+
+  const draws = {
+    flushDraw: !!heroContribFD && category !== 'flush' && category !== 'straight_flush',
+    oesd: sDraws.oesd,
+    gutshot: sDraws.gut
+  };
+
+  return { category, kicker, draws };
+}
+
+function categoryLabel(cat, kicker) {
+  const map = {
+    straight_flush: 'Straight flush', quads: 'Quads', full_house: 'Full house',
+    flush: 'Flush', straight: 'Straight', set: 'Set', trips: 'Trips',
+    two_pair: 'Two pair', two_pair_overpair: 'Overpair + board pair',
+    overpair: 'Overpair', top_pair: 'Top pair', middle_pair: 'Middle pair',
+    bottom_pair: 'Bottom pair', under_pair: 'Underpair',
+    under_pair_w_board_pair: 'Underpair (board paired)',
+    ace_high: 'Ace-high', high_card: 'High card'
+  };
+  let s = map[cat] || cat;
+  if (cat === 'top_pair' && kicker) {
+    s += ' (' + ({ top: 'top kicker', good: 'good kicker', medium: 'OK kicker', weak: 'weak kicker' }[kicker] || '') + ')';
+  }
+  return s;
+}
+
+function boardTexture(boardStrs) {
+  const board = boardStrs.map(parseCard);
+  const ranks = board.map(c => c.r).sort((a, b) => b - a);
+  const suits = board.map(c => c.suit);
+  const uniqRanks = [...new Set(ranks)];
+  const top = ranks[0];
+  const high = top >= 9 ? 'HIGH' : (top >= 6 ? 'MID' : 'LOW');
+  const paired = uniqRanks.length < ranks.length;
+  const suitCount = {};
+  suits.forEach(s => suitCount[s] = (suitCount[s] || 0) + 1);
+  const maxSuit = Math.max(...Object.values(suitCount));
+  const monotone = maxSuit === ranks.length;
+  const twoTone = !monotone && maxSuit === 2 && ranks.length >= 3;
+  const rainbow = maxSuit === 1 && ranks.length >= 3;
+  const uniqAsc = [...uniqRanks].sort((a, b) => a - b);
+  const span = uniqAsc[uniqAsc.length - 1] - uniqAsc[0];
+  const connected = uniqRanks.length >= 3 && span <= 4;
+  const semiConnected = uniqRanks.length >= 3 && span <= 6 && !connected;
+  const wet = monotone || twoTone || connected || semiConnected;
+  return { high, paired, monotone, twoTone, rainbow, connected, semiConnected, wet, top };
+}
+
+function textureLabel(tex) {
+  const parts = [tex.high];
+  if (tex.paired) parts.push('PAIRED');
+  if (tex.monotone) parts.push('MONOTONE');
+  else if (tex.twoTone) parts.push('2-TONE');
+  else if (tex.rainbow) parts.push('RAINBOW');
+  if (tex.connected) parts.push('CONNECTED');
+  else if (tex.semiConnected) parts.push('SEMI-CONN');
+  return parts.join(' / ');
+}
+
+/* ==========================================================
+   Decision heuristics
+   ========================================================== */
+const STRONG_VALUE = new Set([
+  'straight_flush', 'quads', 'full_house', 'flush', 'straight',
+  'set', 'trips', 'two_pair', 'two_pair_overpair', 'overpair'
+]);
+const TOP_PAIR_STRONG_KICKER = new Set(['top', 'good']);
+
+function decideFlopAggressor(holeStrs, boardStrs) {
+  const ev = evaluatePostflop(holeStrs, boardStrs);
+  const tex = boardTexture(boardStrs);
+  const strongDraw = ev.draws.flushDraw || ev.draws.oesd;
+  if (STRONG_VALUE.has(ev.category)) return 'bet';
+  if (ev.category === 'top_pair') return 'bet';
+  if (strongDraw) return 'bet';
+  if (tex.high === 'HIGH' && !tex.wet && !tex.paired) return 'bet';
+  if (ev.category === 'middle_pair' && tex.high !== 'LOW' && !tex.wet) return 'bet';
+  if (ev.draws.gutshot && tex.high === 'HIGH' && !tex.wet) return 'bet';
+  return 'check';
+}
+
+function decideFlopDefender(holeStrs, boardStrs) {
+  const ev = evaluatePostflop(holeStrs, boardStrs);
+  const tex = boardTexture(boardStrs);
+  const strongDraw = ev.draws.flushDraw || ev.draws.oesd;
+  if (['straight_flush', 'quads', 'full_house', 'flush', 'straight'].includes(ev.category)) return 'raise';
+  if (ev.category === 'set') return tex.wet ? 'raise' : 'call';
+  if (['two_pair', 'two_pair_overpair', 'trips', 'overpair'].includes(ev.category)) return 'call';
+  if (ev.category === 'top_pair') return 'call';
+  if (ev.category === 'middle_pair') return 'call';
+  if (strongDraw) return 'call';
+  if (ev.category === 'bottom_pair' && !tex.wet) return 'call';
+  if ((ev.category === 'under_pair' || ev.category === 'under_pair_w_board_pair') && !tex.wet && !tex.paired) return 'call';
+  if (ev.draws.gutshot && ev.category === 'ace_high') return 'call';
+  return 'fold';
+}
+
+function decideTurnBarrel(holeStrs, boardStrs) {
+  const ev = evaluatePostflop(holeStrs, boardStrs);
+  const strongDraw = ev.draws.flushDraw || ev.draws.oesd;
+  if (STRONG_VALUE.has(ev.category)) return 'bet';
+  if (ev.category === 'top_pair') return 'bet';
+  if (strongDraw) return 'bet';
+  return 'check';
+}
+
+function decideRiver(holeStrs, boardStrs) {
+  const ev = evaluatePostflop(holeStrs, boardStrs);
+  if (STRONG_VALUE.has(ev.category)) return 'bet';
+  if (ev.category === 'top_pair' && TOP_PAIR_STRONG_KICKER.has(ev.kicker)) return 'bet';
+  return 'check';
+}
+
+function correctActionFor(state) {
+  switch (state.mode) {
+    case 'rfi': return RFI_RANGES[state.heroPos].has(state.handStr) ? 'raise' : 'fold';
+    case 'vs_raise': {
+      const resp = VS_OPEN_RANGES[state.heroPos];
+      if (!resp) return 'fold';
+      if (resp.threeBet.has(state.handStr)) return 'raise';
+      if (resp.call.has(state.handStr)) return 'call';
+      return 'fold';
+    }
+    case 'flop_aggressor': return decideFlopAggressor(state.cards, state.board);
+    case 'flop_defender':  return decideFlopDefender(state.cards, state.board);
+    case 'turn_barrel':    return decideTurnBarrel(state.cards, state.board);
+    case 'river_barrel':   return decideRiver(state.cards, state.board);
+  }
+  return 'fold';
+}
+
+/* ==========================================================
+   Rendering
+   ========================================================== */
+function renderTable(state) {
+  const { heroPos, villainPos, cards, board, mode: m } = state;
+  const overlay = document.getElementById('overlay');
+  overlay.innerHTML = '';
+
+  const isPostflop = ['flop_aggressor', 'flop_defender', 'turn_barrel', 'river_barrel'].includes(m);
+  const states = isPostflop ? seatStatesPostflop(heroPos, villainPos) : seatStates(heroPos, villainPos);
+
+  Object.entries(SEAT_ANGLES).forEach(([pos, angle]) => {
+    const st = states[pos];
+    const { x, y } = polar(angle, SEAT_R);
+    const seat = document.createElement('div');
+    seat.className = 'seat ' + st;
+    seat.style.left = x + '%';
+    seat.style.top  = y + '%';
+
+    let statusText;
+    if (st === 'hero') statusText = 'YOU';
+    else if (st === 'villain') {
+      if (m === 'vs_raise') statusText = 'RAISED';
+      else if (m === 'flop_defender') statusText = 'BETS';
+      else statusText = 'CALLED';
+    }
+    else if (st === 'folded') statusText = 'fold';
+    else if (pos === 'SB' || pos === 'BB') statusText = 'blind';
+    else statusText = 'to act';
+
+    seat.innerHTML = `
+      <div class="seat-label">${POSITION_SHORT[pos]}</div>
+      <div class="seat-puck">${st === 'folded' ? '' : POSITION_SHORT[pos]}</div>
+      <div class="seat-status">${statusText}</div>
+    `;
+    overlay.appendChild(seat);
+  });
+
+  const dealerAngle = SEAT_ANGLES.BTN - 18;
+  const { x: dx, y: dy } = polar(dealerAngle, DEALER_R);
+  const dealer = document.createElement('div');
+  dealer.className = 'dealer-btn';
+  dealer.style.left = dx + '%';
+  dealer.style.top  = dy + '%';
+  dealer.textContent = 'D';
+  overlay.appendChild(dealer);
+
+  const showVillainChip = (m === 'vs_raise' || m === 'flop_defender') && villainPos;
+  if (showVillainChip) {
+    const vAngle = SEAT_ANGLES[villainPos];
+    const { x: cx, y: cy } = polar(vAngle, CHIP_R);
+    const chip = document.createElement('div');
+    chip.className = 'raise-chip';
+    chip.style.left = cx + '%';
+    chip.style.top  = cy + '%';
+    chip.textContent = m === 'vs_raise' ? '2.5 bb' : 'C-BET';
+    overlay.appendChild(chip);
+  }
+
+  const heroAngle = SEAT_ANGLES[heroPos];
+  const { x: hx, y: hy } = polar(heroAngle, CARD_R);
+  const cardsWrap = document.createElement('div');
+  cardsWrap.className = 'hero-cards';
+  cardsWrap.style.left = hx + '%';
+  cardsWrap.style.top  = hy + '%';
+  cards.forEach(card => {
+    const r = card[0], s = card[1];
+    const el = document.createElement('div');
+    el.className = 'card-sm ' + SUIT_COLOR[s];
+    el.innerHTML = `<div class="rank">${r}</div><div class="suit">${SUIT_CHAR[s]}</div>`;
+    cardsWrap.appendChild(el);
+  });
+  overlay.appendChild(cardsWrap);
+
+  if (isPostflop && board && board.length > 0) {
+    const boardWrap = document.createElement('div');
+    boardWrap.className = 'board-cards';
+    board.forEach(card => {
+      const r = card[0], s = card[1];
+      const el = document.createElement('div');
+      el.className = 'card-board ' + SUIT_COLOR[s];
+      el.innerHTML = `<div class="rank">${r}</div><div class="suit">${SUIT_CHAR[s]}</div>`;
+      boardWrap.appendChild(el);
+    });
+    overlay.appendChild(boardWrap);
+  }
+
+  const tableText = document.getElementById('tableText');
+  if (m === 'rfi') {
+    tableText.className = 'table-text preflop';
+    const count = BETTING_ORDER.slice(0, BETTING_ORDER.indexOf(heroPos)).length;
+    const foldedText = count === 0
+      ? `You're first to act from <b>${POSITION_SHORT[heroPos]}</b>`
+      : `${count} player${count === 1 ? '' : 's'} folded to <b>${POSITION_SHORT[heroPos]}</b>`;
+    tableText.innerHTML = `${foldedText}<div class="pot-chip">Pot: 1.5 bb (blinds)</div>`;
+  } else if (m === 'vs_raise') {
+    tableText.className = 'table-text preflop';
+    tableText.innerHTML =
+      `<span class="v">${POSITION_SHORT[villainPos]}</span> raises to <b>2.5 bb</b>.<br>Action on <b>${POSITION_SHORT[heroPos]}</b>.<div class="pot-chip">Pot: 4 bb</div>`;
+  } else if (m === 'flop_aggressor') {
+    tableText.className = 'table-text';
+    tableText.innerHTML = `You opened from <b>${POSITION_SHORT[heroPos]}</b>, <span class="v">BB</span> called.<br>Flop — your action.<div class="pot-chip">Pot: ~5.5 bb</div>`;
+  } else if (m === 'flop_defender') {
+    tableText.className = 'table-text';
+    tableText.innerHTML = `You defended <b>BB</b> vs <span class="v">${POSITION_SHORT[villainPos]}</span> open.<br><span class="v">${POSITION_SHORT[villainPos]}</span> c-bets flop. Your action.<div class="pot-chip">Pot: ~11 bb</div>`;
+  } else if (m === 'turn_barrel') {
+    tableText.className = 'table-text';
+    tableText.innerHTML = `You opened <b>${POSITION_SHORT[heroPos]}</b>, c-bet flop, <span class="v">BB</span> called.<br>Turn — your action.<div class="pot-chip">Pot: ~13 bb</div>`;
+  } else if (m === 'river_barrel') {
+    tableText.className = 'table-text';
+    tableText.innerHTML = `You opened <b>${POSITION_SHORT[heroPos]}</b>, bet flop + turn, <span class="v">BB</span> called both.<br>River — your action.<div class="pot-chip">Pot: ~30 bb</div>`;
+  }
+
+  document.getElementById('handLabel').textContent = state.handStr;
+
+  const tag = document.getElementById('handTag');
+  if (isPostflop) {
+    const ev = evaluatePostflop(cards, board);
+    tag.style.display = 'inline-block';
+    tag.textContent = categoryLabel(ev.category, ev.kicker);
+  } else {
+    tag.style.display = 'none';
+  }
+
+  renderActions(m);
+}
+
+function renderActions(m) {
+  const row = document.getElementById('actionsRow');
+  row.innerHTML = '';
+  if (m === 'rfi') {
+    row.className = 'actions';
+    row.innerHTML = `
+      <button class="btn btn-fold" data-action="fold">Fold</button>
+      <button class="btn btn-call" data-action="call">Call</button>
+      <button class="btn btn-raise" data-action="raise">Raise<span class="sub-label">open 2.5bb</span></button>`;
+  } else if (m === 'vs_raise') {
+    row.className = 'actions';
+    row.innerHTML = `
+      <button class="btn btn-fold" data-action="fold">Fold</button>
+      <button class="btn btn-call" data-action="call">Call</button>
+      <button class="btn btn-raise" data-action="raise">3-Bet<span class="sub-label">raise</span></button>`;
+  } else if (m === 'flop_defender') {
+    row.className = 'actions';
+    row.innerHTML = `
+      <button class="btn btn-fold" data-action="fold">Fold</button>
+      <button class="btn btn-call" data-action="call">Call</button>
+      <button class="btn btn-raise" data-action="raise">Raise<span class="sub-label">check-raise</span></button>`;
+  } else {
+    row.className = 'actions two-btn';
+    row.innerHTML = `
+      <button class="btn btn-check" data-action="check">Check</button>
+      <button class="btn btn-bet" data-action="bet">Bet<span class="sub-label">${m === 'river_barrel' ? 'value' : (m === 'turn_barrel' ? 'barrel' : 'c-bet')}</span></button>`;
+  }
+  row.querySelectorAll('.btn[data-action]').forEach(btn => {
+    btn.addEventListener('click', () => handleAnswer(btn.dataset.action));
+  });
+}
+
+function renderScore() {
+  document.getElementById('correct').textContent = score.correct;
+  document.getElementById('total').textContent = score.total;
+  const pctEl = document.getElementById('pct');
+  if (score.total === 0) pctEl.textContent = '';
+  else pctEl.textContent = ' (' + Math.round((score.correct / score.total) * 100) + '%)';
+}
+
+function renderProgress() {
+  const left = document.getElementById('progressLeft');
+  const right = document.getElementById('progressRight');
+  const bar = document.getElementById('progressBar');
+  const fill = document.getElementById('progressFill');
+
+  if (appMode === 'test') {
+    left.innerHTML = `Hand <b>${Math.min(handNum, TEST_LENGTH)}</b> of <b>${TEST_LENGTH}</b>`;
+    right.textContent = '';
+    bar.classList.remove('hidden');
+    fill.style.width = ((score.total / TEST_LENGTH) * 100) + '%';
+  } else {
+    left.innerHTML = `<b>${MODE_SHORT_LABEL[mode]}</b>`;
+    right.innerHTML = `Hand <b>${handNum}</b>`;
+    bar.classList.add('hidden');
+    fill.style.width = '0%';
+  }
+}
+
+function updateTestBanner() {
+  const banner = document.getElementById('testBanner');
+  const pill = document.getElementById('testBannerPill');
+  if (appMode === 'test' && current) {
+    banner.classList.remove('hidden');
+    pill.textContent = MODE_SHORT_LABEL[current.mode];
+  } else {
+    banner.classList.add('hidden');
+  }
+}
+
+/* ==========================================================
+   Game Flow
+   ========================================================== */
+function startRound() {
+  // Reset score/progress, show game view, deal first hand
+  score = { correct: 0, total: 0 };
+  handNum = 0;
+  mistakes = [];
+  document.getElementById('resultsView').style.display = 'none';
+  document.getElementById('gameView').style.display = 'block';
+  renderScore();
+  nextHand();
+}
+
+function buildHand(forcedMode) {
+  const m = forcedMode;
+  let heroPos, villainPos = null, cards, handStr, board = null;
+
+  if (m === 'rfi') {
+    heroPos = randChoice(HERO_RFI);
+    cards = dealHandRandom();
+    handStr = handToString(cards[0], cards[1]);
+  } else if (m === 'vs_raise') {
+    heroPos = randChoice(HERO_VS_RAISE);
+    villainPos = randChoice(validVillainsFor(heroPos));
+    cards = dealHandRandom();
+    handStr = handToString(cards[0], cards[1]);
+  } else if (m === 'flop_aggressor' || m === 'turn_barrel' || m === 'river_barrel') {
+    heroPos = randChoice(HERO_POSTFLOP_AGGR);
+    villainPos = 'BB';
+    const dealt = randHandFromRange(RFI_RANGES[heroPos]);
+    cards = dealt.cards;
+    handStr = dealt.handStr;
+    const nBoard = m === 'flop_aggressor' ? 3 : (m === 'turn_barrel' ? 4 : 5);
+    board = dealBoard(cards, nBoard);
+  } else if (m === 'flop_defender') {
+    heroPos = 'BB';
+    const villainPool = ['UTG','UTG1','UTG2','LJ','HJ','CO','BTN'];
+    villainPos = randChoice(villainPool);
+    const dealt = randHandFromRange(VS_OPEN_RANGES.BB.call);
+    cards = dealt.cards;
+    handStr = dealt.handStr;
+    board = dealBoard(cards, 3);
+  }
+
+  return { mode: m, heroPos, villainPos, cards, handStr, board };
+}
+
+function nextHand() {
+  if (appMode === 'test' && score.total >= TEST_LENGTH) {
+    showTestResults();
+    return;
+  }
+  handNum = score.total + 1;
+
+  const pickedMode = appMode === 'test' ? randChoice(ALL_MODES) : mode;
+  current = buildHand(pickedMode);
+  locked = false;
+
+  renderTable(current);
+  updateTestBanner();
+
+  const fb = document.getElementById('feedback');
+  fb.className = 'feedback';
+  fb.innerHTML = '';
+  document.getElementById('nextBtn').style.display = 'none';
+  document.querySelectorAll('.btn[data-action]').forEach(b => b.disabled = false);
+  renderProgress();
+}
+
+function handleAnswer(userAction) {
+  if (locked) return;
+  locked = true;
+
+  const correct = correctActionFor(current);
+  const isCorrect = userAction === correct;
+
+  score.total += 1;
+  if (isCorrect) score.correct += 1;
+  else mistakes.push({
+    handStr: current.handStr,
+    heroPos: current.heroPos,
+    villainPos: current.villainPos,
+    chose: userAction,
+    correct: correct,
+    mode: current.mode,
+    board: current.board ? [...current.board] : null
+  });
+  renderScore();
+  renderProgress();
+
+  const fb = document.getElementById('feedback');
+  fb.className = 'feedback show ' + (isCorrect ? 'correct' : 'wrong');
+  const explanation = explainDecision(current, userAction, correct);
+
+  const inTestFinal = appMode === 'test' && score.total >= TEST_LENGTH;
+  fb.innerHTML = `
+    <div class="head">${isCorrect ? '✓ Correct' : '✗ Incorrect'} — Best play: ${labelFor(correct, current.mode)}</div>
+    <div>${explanation.text}</div>
+    ${explanation.tags ? `<div class="tags">${explanation.tags}</div>` : ''}`;
+
+  document.querySelectorAll('.btn[data-action]').forEach(b => b.disabled = true);
+  const nb = document.getElementById('nextBtn');
+  nb.style.display = 'block';
+  nb.textContent = inTestFinal ? 'See Results →' : 'Next Hand →';
+}
+
+function explainDecision(state, userAction, correct) {
+  const isCorrect = userAction === correct;
+  const opener = randChoice(isCorrect ? OPENERS_CORRECT : OPENERS_WRONG);
+  const handStr = state.handStr;
+  const hero = POSITION_SHORT[state.heroPos];
+  const villain = state.villainPos ? POSITION_SHORT[state.villainPos] : null;
+  const m = state.mode;
+  let body = '';
+  let tags = '';
+
+  if (m === 'rfi') {
+    if (isCorrect && correct === 'raise') {
+      body = `<b>${handStr}</b> is smack in the <b>${hero}</b> opening range — value + playability, ship it and let the blinds sweat.`;
+    } else if (isCorrect && correct === 'fold') {
+      body = `<b>${handStr}</b> from <b>${hero}</b>? The solver wouldn't touch it with a borrowed stack. Tight is right.`;
+    } else if (userAction === 'raise' && correct === 'fold') {
+      body = `<b>${handStr}</b> isn't in the <b>${hero}</b> opening range. Opening this is how you become a target — and not the fun kind.`;
+    } else if (userAction === 'fold' && correct === 'raise') {
+      body = `<b>${handStr}</b> opens from <b>${hero}</b> seven days a week. Folding it is blinds-donation with extra steps.`;
+    } else if (userAction === 'call') {
+      body = `Limping in an unopened pot is a time-honored tradition — at $1/$2 live with a cocktail in hand. In GTO, it's raise or fold. Calling is forbidden.`;
+    }
+  }
+  else if (m === 'vs_raise') {
+    if (isCorrect && correct === 'raise') {
+      body = `<b>${handStr}</b> is a clean <b>3-bet</b> vs a <b>${villain}</b> open — value + blockers, exactly what the solver ordered.`;
+    } else if (isCorrect && correct === 'call') {
+      body = `<b>${handStr}</b> flats vs a <b>${villain}</b> open — too good to fold, not quite a 3-bet. Resist the urge to get creative.`;
+    } else if (isCorrect && correct === 'fold') {
+      body = `<b>${handStr}</b> vs a <b>${villain}</b> open is the hand that quietly costs you a stack in tiny installments. Fold. Thank yourself later.`;
+    } else if (userAction === 'fold') {
+      body = `A touch too tight. <b>${handStr}</b> wants to <b>${correct === 'raise' ? '3-bet' : 'flat'}</b> vs a <b>${villain}</b> open — folding this makes your defense range look suspiciously nitty.`;
+    } else if (userAction === 'call' && correct === 'raise') {
+      body = `Just calling with <b>${handStr}</b>? That's leaving value on the felt and waving at villain's weak hands. 3-bet it.`;
+    } else if (userAction === 'call' && correct === 'fold') {
+      body = `"Maybe I'll flop something" isn't a strategy, it's a prayer. <b>${handStr}</b> OOP vs a <b>${villain}</b> open belongs in the muck.`;
+    } else if (userAction === 'raise' && correct === 'call') {
+      body = `Hero 3-bet detected. <b>${handStr}</b> plays better as a flat — 3-betting folds out worse and keeps in hands that crush you.`;
+    } else if (userAction === 'raise' && correct === 'fold') {
+      body = `Bluff 3-betting <b>${handStr}</b>? Brave. Bold. Bad. The solver sends its regards.`;
+    }
+  }
+  else {
+    const ev = evaluatePostflop(state.cards, state.board);
+    const tex = boardTexture(state.board);
+    const catLabel = categoryLabel(ev.category, ev.kicker);
+    const texLabel = textureLabel(tex);
+    const drawNotes = [];
+    if (ev.draws.flushDraw) drawNotes.push('flush draw');
+    if (ev.draws.oesd) drawNotes.push('open-ender');
+    if (ev.draws.gutshot && !ev.draws.oesd) drawNotes.push('gutshot');
+    const drawStr = drawNotes.length ? ' + ' + drawNotes.join(', ') : '';
+    tags = `<span>${catLabel}${drawStr}</span><span>${texLabel}</span>`;
+
+    if (m === 'flop_aggressor') {
+      if (isCorrect && correct === 'bet') {
+        if (STRONG_VALUE.has(ev.category) || ev.category === 'top_pair')
+          body = `<b>${catLabel}${drawStr}</b> on <b>${texLabel}</b>. Bet it — BB called pre for a reason, so make them regret the reason.`;
+        else if (ev.draws.flushDraw || ev.draws.oesd)
+          body = `Semi-bluff life. <b>${catLabel}${drawStr}</b> on <b>${texLabel}</b> — equity + fold equity, what's not to love?`;
+        else
+          body = `High-card dry flop? Your range crushes BB's. Range-bet small and act like you always have it. Because on this board, you basically do.`;
+      } else if (isCorrect && correct === 'check') {
+        body = `<b>${catLabel}${drawStr}</b> on <b>${texLabel}</b> — not worth bloating the pot OOP. Check back, live to fight another street. Discipline is sexy.`;
+      } else if (userAction === 'bet' && correct === 'check') {
+        body = `Fire-for-fire's-sake. <b>${catLabel}${drawStr}</b> on <b>${texLabel}</b> isn't a c-bet — you're just building a pot for BB's flop-calling range to enjoy.`;
+      } else {
+        body = `You had <b>${catLabel}${drawStr}</b> on <b>${texLabel}</b> and… checked? That's how BB realizes equity for free. As the PFR, this is a bet. Every time.`;
+      }
+    }
+    else if (m === 'flop_defender') {
+      if (isCorrect && correct === 'raise')
+        body = `Big hand, wet board — <b>${catLabel}${drawStr}</b> on <b>${texLabel}</b>. Check-raise for value, charge the draws, thank the deck.`;
+      else if (isCorrect && correct === 'call')
+        body = `<b>${catLabel}${drawStr}</b> on <b>${texLabel}</b> — enough equity to peel, not enough to blow it up. Just call. Stay boring.`;
+      else if (isCorrect && correct === 'fold')
+        body = `<b>${catLabel}${drawStr}</b> on <b>${texLabel}</b> is air. The muck is calling. Answer it.`;
+      else if (userAction === 'fold')
+        body = `You folded <b>${catLabel}${drawStr}</b> on <b>${texLabel}</b>? Villain would like to c-bet every flop against you forever. Peel.`;
+      else if (userAction === 'call' && correct === 'fold')
+        body = `Peeling <b>${catLabel}${drawStr}</b> on <b>${texLabel}</b> because "you never know" — you do know. It's a fold.`;
+      else if (userAction === 'raise' && correct === 'call')
+        body = `Turning <b>${catLabel}${drawStr}</b> face-up with a check-raise is how you get 3-bet off your equity. Flat is stronger — let villain keep barreling.`;
+    }
+    else if (m === 'turn_barrel') {
+      if (isCorrect && correct === 'bet')
+        body = `<b>${catLabel}${drawStr}</b> on <b>${texLabel}</b>. Keep firing. BB's flop-call range is capped and you have the ammo.`;
+      else if (isCorrect && correct === 'check')
+        body = `<b>${catLabel}${drawStr}</b> on <b>${texLabel}</b> — pot control. Not every street is a barrel street; some hands just want cheap showdown.`;
+      else if (userAction === 'bet' && correct === 'check')
+        body = `Double-barreling <b>${catLabel}${drawStr}</b> into a BB who called the flop is how mediocre hands become bluff-catchers in real time.`;
+      else
+        body = `Checking strong hands on the turn is extremely polite. Your bankroll would prefer rude. Barrel.`;
+    }
+    else if (m === 'river_barrel') {
+      if (isCorrect && correct === 'bet')
+        body = `<b>${catLabel}${drawStr}</b> on <b>${texLabel}</b>. Clean value — BB's pair range calls thin. Print, please.`;
+      else if (isCorrect && correct === 'check')
+        body = `<b>${catLabel}${drawStr}</b> on <b>${texLabel}</b> — take showdown. Turning this into a bluff-catcher by betting is villain's dream scenario.`;
+      else if (userAction === 'bet' && correct === 'check')
+        body = `Hero-barreling the river with <b>${catLabel}${drawStr}</b>? BB flatted twice — their range is pairs that beat or tie you. Check it down and collect the chop.`;
+      else
+        body = `You checked strong value on the river? That's a "good hand!" from villain and a "bad session" from your bankroll. Bet.`;
+    }
+  }
+
+  return { text: `${opener} ${body}`, tags };
+}
+
+function labelFor(action, m) {
+  if (action === 'fold') return 'FOLD';
+  if (action === 'call') return 'CALL';
+  if (action === 'check') return 'CHECK';
+  if (action === 'bet') return 'BET';
+  if (action === 'raise') {
+    if (m === 'vs_raise') return '3-BET';
+    return 'RAISE';
+  }
+  return action.toUpperCase();
+}
+
+function verdictFor(pct) {
+  if (pct === 100) return '🏆 Perfect run — solver-tight.';
+  if (pct >= 90)  return 'Excellent — very close to GTO.';
+  if (pct >= 75)  return 'Solid — a few leaks to patch.';
+  if (pct >= 60)  return 'Decent — study the mistakes below.';
+  if (pct >= 40)  return 'Room to grow — review the chart and try again.';
+  return 'Rough round — take another swing.';
+}
+
+/* ==========================================================
+   Test results → name prompt → leaderboard
+   ========================================================== */
+function showTestResults() {
+  document.getElementById('gameView').style.display = 'none';
+  document.getElementById('resultsView').style.display = 'block';
+  document.getElementById('testBanner').classList.add('hidden');
+
+  const pct = Math.round((score.correct / TEST_LENGTH) * 100);
+  document.getElementById('finalCorrect').textContent = score.correct;
+  document.getElementById('finalTotal').textContent = TEST_LENGTH;
+  document.getElementById('finalPct').textContent = pct + '%';
+  document.getElementById('verdict').textContent = verdictFor(pct);
+
+  const mWrap = document.getElementById('mistakes');
+  if (mistakes.length === 0) {
+    mWrap.innerHTML = '<div class="empty">✓ Clean sheet — no mistakes.</div>';
+  } else {
+    const items = mistakes.map(m => {
+      let ctx;
+      if (m.mode === 'rfi') ctx = `in <b>${POSITION_SHORT[m.heroPos]}</b>`;
+      else if (m.mode === 'vs_raise') ctx = `<b>${POSITION_SHORT[m.heroPos]}</b> vs <b>${POSITION_SHORT[m.villainPos]}</b> open`;
+      else if (m.mode === 'flop_aggressor') ctx = `<b>${POSITION_SHORT[m.heroPos]}</b> c-bet spot · <b>${m.board.join(' ')}</b>`;
+      else if (m.mode === 'flop_defender') ctx = `<b>BB</b> vs <b>${POSITION_SHORT[m.villainPos]}</b> c-bet · <b>${m.board.join(' ')}</b>`;
+      else if (m.mode === 'turn_barrel') ctx = `<b>${POSITION_SHORT[m.heroPos]}</b> turn barrel · <b>${m.board.join(' ')}</b>`;
+      else if (m.mode === 'river_barrel') ctx = `<b>${POSITION_SHORT[m.heroPos]}</b> river · <b>${m.board.join(' ')}</b>`;
+      return `<li><b>${m.handStr}</b> — ${ctx} — chose <b>${labelFor(m.chose, m.mode).toLowerCase()}</b>, correct was <b>${labelFor(m.correct, m.mode).toLowerCase()}</b></li>`;
+    }).join('');
+    mWrap.innerHTML = `<h3>MISTAKES (${mistakes.length})</h3><ul>${items}</ul>`;
+  }
+
+  // Reset name-form state
+  lastTestResult = { score: score.correct, total: TEST_LENGTH, pct };
+  document.getElementById('nameForm').style.display = 'block';
+  document.getElementById('leaderboard').style.display = 'none';
+  populatePastNames();
+  const input = document.getElementById('nameInput');
+  try { input.value = localStorage.getItem('holdemGtoLastName') || ''; } catch (e) { input.value = ''; }
+  setTimeout(() => { input.focus(); input.select(); }, 100);
+}
+
+function getLeaderboard() {
+  try {
+    const raw = localStorage.getItem(LEADERBOARD_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed;
+  } catch (e) { return []; }
+}
+
+function writeLocalLeaderboard(entries) {
+  try { localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(entries)); } catch (e) {}
+}
+
+function mergeLeaderboards(a, b) {
+  // Union by id; keep the first occurrence. Newest-first, trimmed to storage cap.
+  const seen = new Map();
+  for (const e of (a || [])) { if (e && e.id && !seen.has(e.id)) seen.set(e.id, e); }
+  for (const e of (b || [])) { if (e && e.id && !seen.has(e.id)) seen.set(e.id, e); }
+  return Array.from(seen.values())
+    .sort((x, y) => (y.date || 0) - (x.date || 0))
+    .slice(0, LEADERBOARD_STORAGE_CAP);
+}
+
+async function cloudFetchEntries() {
+  if (!cloudEnabled()) return null;
+  const r = await fetch(`https://api.jsonbin.io/v3/b/${CLOUD.binId}/latest`, {
+    headers: {
+      'X-Master-Key': CLOUD.masterKey,
+      'X-Bin-Meta': 'false'
+    },
+    cache: 'no-store'
+  });
+  if (!r.ok) throw new Error('cloud fetch ' + r.status);
+  const data = await r.json();
+  // X-Bin-Meta:false returns the raw record; with meta it'd be {record, metadata}.
+  const record = (data && typeof data === 'object' && 'record' in data) ? data.record : data;
+  if (Array.isArray(record)) return record;
+  if (record && Array.isArray(record.entries)) return record.entries;
+  return [];
+}
+
+async function cloudPutEntries(entries) {
+  if (!cloudEnabled()) return false;
+  const r = await fetch(`https://api.jsonbin.io/v3/b/${CLOUD.binId}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Master-Key': CLOUD.masterKey
+    },
+    body: JSON.stringify({ entries })
+  });
+  return r.ok;
+}
+
+let cloudSyncPromise = null;
+async function syncFromCloud() {
+  if (!cloudEnabled()) return getLeaderboard();
+  if (cloudSyncPromise) return cloudSyncPromise;
+  cloudSyncPromise = (async () => {
+    try {
+      const remote = await cloudFetchEntries();
+      const local = getLeaderboard();
+      const merged = mergeLeaderboards(remote, local);
+      writeLocalLeaderboard(merged);
+      // If our local had entries the cloud didn't, push the merged set back.
+      const remoteIds = new Set((remote || []).map(e => e && e.id));
+      const hasLocalOnly = merged.some(e => e && e.id && !remoteIds.has(e.id));
+      if (hasLocalOnly) { try { await cloudPutEntries(merged); } catch (e) {} }
+      return merged;
+    } catch (e) {
+      console.warn('Leaderboard cloud sync failed, using local cache:', e);
+      return getLeaderboard();
+    } finally {
+      cloudSyncPromise = null;
+    }
+  })();
+  return cloudSyncPromise;
+}
+
+async function cloudPushEntry(newEntry) {
+  if (!cloudEnabled()) return;
+  try {
+    const remote = (await cloudFetchEntries()) || [];
+    const merged = mergeLeaderboards([newEntry], mergeLeaderboards(remote, getLeaderboard()));
+    await cloudPutEntries(merged);
+    writeLocalLeaderboard(merged);
+  } catch (e) {
+    console.warn('Leaderboard cloud push failed (kept locally):', e);
+  }
+}
+
+function saveLeaderboardEntry(name, result) {
+  const lb = getLeaderboard();
+  const entry = {
+    name: name.slice(0, 24),
+    score: result.score,
+    total: result.total,
+    pct: result.pct,
+    date: Date.now(),
+    id: Math.random().toString(36).slice(2, 10)
+  };
+  lb.push(entry);
+  // Keep newest-first so storage cap trims oldest entries rather than lowest scores.
+  lb.sort((a, b) => b.date - a.date);
+  const trimmed = lb.slice(0, LEADERBOARD_STORAGE_CAP);
+  writeLocalLeaderboard(trimmed);
+  try { localStorage.setItem('holdemGtoLastName', name); } catch (e) {}
+  // Fire-and-forget cloud push so the UI stays snappy.
+  if (cloudEnabled()) { cloudPushEntry(entry); }
+  return entry;
+}
+
+function populatePastNames() {
+  const dl = document.getElementById('pastNames');
+  if (!dl) return;
+  const lb = getLeaderboard();
+  const seen = new Set();
+  const names = [];
+  for (const e of lb) {
+    if (e && e.name && !seen.has(e.name.toLowerCase())) {
+      seen.add(e.name.toLowerCase());
+      names.push(e.name);
+    }
+  }
+  dl.innerHTML = names.map(n => `<option value="${String(n).replace(/"/g,'&quot;')}"></option>`).join('');
+}
+
+function weekWindowLabel() {
+  const now = Date.now();
+  const start = now - WEEK_WINDOW_MS;
+  const s = new Date(start);
+  const e = new Date(now);
+  const fmt = (d) => `${d.toLocaleString('en-US', { month: 'short' })} ${d.getDate()}`;
+  return `${fmt(s)} – ${fmt(e)}`;
+}
+
+function formatDate(ts) {
+  const d = new Date(ts);
+  const month = d.toLocaleString('en-US', { month: 'short' });
+  return `${month} ${d.getDate()}`;
+}
+
+function renderLeaderboard(targetEl, highlightId, syncState) {
+  const wrap = targetEl || document.getElementById('leaderboard');
+  const cutoff = Date.now() - WEEK_WINDOW_MS;
+  const all = getLeaderboard();
+  const thisWeek = all
+    .filter(e => e && typeof e.date === 'number' && e.date >= cutoff)
+    .sort((a, b) => (b.pct - a.pct) || (b.score - a.score) || (b.date - a.date))
+    .slice(0, LEADERBOARD_DISPLAY);
+
+  let pill = '';
+  if (cloudEnabled() && syncState === 'syncing') {
+    pill = `<span class="lb-sync" style="margin-left:10px;font-size:11px;color:var(--muted);letter-spacing:0.4px;">· syncing…</span>`;
+  } else if (cloudEnabled() && syncState === 'synced') {
+    pill = `<span class="lb-sync" style="margin-left:10px;font-size:11px;color:var(--muted);letter-spacing:0.4px;">· synced</span>`;
+  } else if (!cloudEnabled()) {
+    pill = `<span class="lb-sync" style="margin-left:10px;font-size:11px;color:var(--muted);letter-spacing:0.4px;" title="Cloud sync not configured — scores stay on this device.">· this device only</span>`;
+  }
+  const heading = `<h3>Weekly Leaderboard · Top ${LEADERBOARD_DISPLAY} <span style="font-weight:500;color:var(--muted);letter-spacing:0.3px;">(${weekWindowLabel()})</span>${pill}</h3>`;
+
+  if (thisWeek.length === 0) {
+    wrap.innerHTML = heading + `<div class="lb-empty">No scores posted in the past 7 days yet — be the first!</div>`;
+  } else {
+    const esc = (s) => String(s).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+    const rows = thisWeek.map((e, i) => {
+      const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '';
+      const cls = highlightId && e.id === highlightId ? 'you' : '';
+      return `<tr class="${cls}">
+        <td class="rank"><span class="medal">${medal}</span>${i + 1}</td>
+        <td class="name">${esc(e.name)}</td>
+        <td class="score">${e.score}/${e.total}</td>
+        <td class="pct">${e.pct}%</td>
+        <td class="date">${formatDate(e.date)}</td>
+      </tr>`;
+    }).join('');
+    wrap.innerHTML = heading + `
+      <table class="lb-table">
+        <thead><tr><th>#</th><th>Name</th><th style="text-align:right">Score</th><th style="text-align:right">%</th><th style="text-align:right">Date</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+  }
+  wrap.style.display = 'block';
+}
+
+// Render instantly from local cache, then if cloud is enabled, sync and re-render.
+async function refreshLeaderboard(targetEl, highlightId) {
+  const syncing = cloudEnabled() ? 'syncing' : 'offline';
+  renderLeaderboard(targetEl, highlightId, syncing);
+  if (!cloudEnabled()) return;
+  await syncFromCloud();
+  renderLeaderboard(targetEl, highlightId, 'synced');
+}
+
+function handleSaveScore() {
+  const input = document.getElementById('nameInput');
+  const name = (input.value || '').trim() || 'Anonymous';
+  const entry = saveLeaderboardEntry(name, lastTestResult);
+  document.getElementById('nameForm').style.display = 'none';
+  refreshLeaderboard(document.getElementById('leaderboard'), entry ? entry.id : null);
+}
+
+/* ==========================================================
+   App-mode switching
+   ========================================================== */
+function setAppMode(newMode) {
+  if (newMode === appMode) return;
+  appMode = newMode;
+  document.querySelectorAll('.appmode-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.appmode === appMode));
+
+  const modeToggle = document.getElementById('modeToggle');
+  if (appMode === 'test') {
+    modeToggle.classList.add('hidden');
+  } else {
+    modeToggle.classList.remove('hidden');
+  }
+  document.getElementById('testBanner').classList.add('hidden');
+  startRound();
+}
+
+function setMode(newMode) {
+  if (newMode === mode) return;
+  mode = newMode;
+  document.querySelectorAll('.mode-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.mode === mode));
+  startRound();
+}
+
+/* ==========================================================
+   Wiring
+   ========================================================== */
+document.getElementById('nextBtn').addEventListener('click', nextHand);
+document.getElementById('restartBtn').addEventListener('click', () => {
+  // Ensure we're in test appMode
+  if (appMode !== 'test') setAppMode('test');
+  else startRound();
+});
+document.getElementById('toPracticeBtn').addEventListener('click', () => setAppMode('practice'));
+document.getElementById('saveScoreBtn').addEventListener('click', handleSaveScore);
+document.getElementById('nameInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); handleSaveScore(); }
+});
+
+document.querySelectorAll('.appmode-btn').forEach(btn => {
+  btn.addEventListener('click', () => setAppMode(btn.dataset.appmode));
+});
+
+document.querySelectorAll('.mode-btn').forEach(btn => {
+  btn.addEventListener('click', () => setMode(btn.dataset.mode));
+});
+
+/* Leaderboard modal wiring */
+function openLeaderboardModal() {
+  refreshLeaderboard(document.getElementById('lbModalBody'), null).then(() => {
+    populatePastNames();
+  });
+  document.getElementById('lbModal').classList.add('show');
+}
+function closeLeaderboardModal() {
+  document.getElementById('lbModal').classList.remove('show');
+}
+document.getElementById('openLbBtn').addEventListener('click', openLeaderboardModal);
+document.getElementById('closeLbBtn').addEventListener('click', closeLeaderboardModal);
+document.getElementById('lbModal').addEventListener('click', (e) => {
+  if (e.target.id === 'lbModal') closeLeaderboardModal();
+});
+
+document.addEventListener('keydown', (e) => {
+  // Escape closes the leaderboard modal if open
+  if (e.key === 'Escape' && document.getElementById('lbModal').classList.contains('show')) {
+    closeLeaderboardModal();
+    return;
+  }
+  // Ignore key shortcuts while typing in the name field
+  const target = e.target;
+  if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return;
+
+  if (e.key === ' ' || e.key === 'Enter') {
+    const rv = document.getElementById('resultsView');
+    if (rv.style.display !== 'none') {
+      // If leaderboard is shown, Enter starts new test. If name form visible, let Enter in field handle it.
+      if (document.getElementById('leaderboard').style.display !== 'none') {
+        e.preventDefault(); document.getElementById('restartBtn').click();
+      }
+      return;
+    }
+    const nb = document.getElementById('nextBtn');
+    if (nb.style.display !== 'none') { e.preventDefault(); nb.click(); }
+    return;
+  }
+  if (locked) return;
+  if (document.getElementById('gameView').style.display === 'none') return;
+  const map = { f: 'fold', c: 'call', r: 'raise', k: 'check', b: 'bet' };
+  const action = map[e.key.toLowerCase()];
+  if (action) {
+    const btn = document.querySelector(`.btn[data-action="${action}"]`);
+    if (btn && !btn.disabled) handleAnswer(action);
+  }
+});
+
+startRound();
+
+// Prime the leaderboard + name autocomplete from the cloud on boot (if configured).
+if (cloudEnabled()) {
+  syncFromCloud().then(() => { populatePastNames(); });
+}
+</script>
+</body>
+</html>
