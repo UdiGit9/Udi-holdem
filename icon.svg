@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <radialGradient id="felt" cx="50%" cy="35%" r="75%">
+      <stop offset="0%" stop-color="#1e4d34"/>
+      <stop offset="100%" stop-color="#0a2418"/>
+    </radialGradient>
+    <linearGradient id="gold" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#fff3c4"/>
+      <stop offset="55%" stop-color="#f5c542"/>
+      <stop offset="100%" stop-color="#b98a1a"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="6" stdDeviation="8" flood-opacity="0.5"/>
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="96" ry="96" fill="url(#felt)"/>
+  <rect x="6" y="6" width="500" height="500" rx="92" ry="92" fill="none" stroke="rgba(245,197,66,0.25)" stroke-width="2"/>
+  <g filter="url(#shadow)">
+    <path d="M256 96
+             C 188 172, 112 228, 112 304
+             C 112 352, 148 388, 192 388
+             C 224 388, 248 372, 256 348
+             C 264 372, 288 388, 320 388
+             C 364 388, 400 352, 400 304
+             C 400 228, 324 172, 256 96 Z"
+          fill="url(#gold)" stroke="#8a6311" stroke-width="4"/>
+    <path d="M232 360
+             C 232 384, 224 404, 204 420
+             L 308 420
+             C 288 404, 280 384, 280 360 Z"
+          fill="url(#gold)" stroke="#8a6311" stroke-width="4"/>
+  </g>
+  <text x="256" y="470" text-anchor="middle"
+        font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+        font-size="42" font-weight="800" fill="#f5c542" letter-spacing="4">
+    UH
+  </text>
+</svg>

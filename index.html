@@ -2,8 +2,24 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
 <title>Udi's Hold'em Trainer</title>
+
+<!-- PWA -->
+<link rel="manifest" href="manifest.webmanifest"/>
+<meta name="theme-color" content="#0d1e15"/>
+<meta name="description" content="A 9-max Texas Hold'em GTO-style trainer for drilling preflop and postflop decisions."/>
+
+<!-- iOS home-screen support (Apple ignores manifest.json) -->
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="Hold'em Trainer"/>
+<link rel="apple-touch-icon" href="apple-touch-icon.png"/>
+
+<!-- Favicons -->
+<link rel="icon" type="image/svg+xml" href="icon.svg"/>
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png"/>
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png"/>
 <style>
   :root {
     --felt: #0e6b44;
@@ -1061,6 +1077,20 @@
 </div>
 
 <script>
+/* ==========================================================
+   Service worker registration (PWA)
+   ----------------------------------------------------------
+   Enables "Install" / "Add to Home Screen" and offline play.
+   Only runs on http(s) — file:// disables it automatically.
+   ========================================================== */
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js').catch(err => {
+      console.warn('Service worker registration failed:', err);
+    });
+  });
+}
+
 /* ==========================================================
    RFI ranges
    ========================================================== */
