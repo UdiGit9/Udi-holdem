@@ -719,6 +719,87 @@
   }
   .help-btn:hover { background: rgba(255,255,255,0.14); color: #fff; }
 
+  .ante-btn {
+    background: linear-gradient(180deg, #d23a3a, #a02020);
+    color: #fff;
+    border: 1px solid rgba(255,255,255,0.2);
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+    letter-spacing: 0.5px;
+    box-shadow: 0 2px 6px rgba(160,32,32,0.35);
+    transition: all 0.15s ease;
+    white-space: nowrap;
+  }
+  .ante-btn:hover { filter: brightness(1.1); transform: translateY(-1px); }
+
+  /* Ante / tip jar */
+  .ante-intro { color: var(--muted); font-size: 14px; line-height: 1.5; margin: 0 0 18px; }
+  .ante-tiers {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .ante-tier {
+    display: block;
+    padding: 16px 12px 14px;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.04);
+    color: var(--text);
+    text-decoration: none;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    font-family: inherit;
+  }
+  .ante-tier:hover {
+    background: rgba(245,197,66,0.12);
+    border-color: rgba(245,197,66,0.45);
+    transform: translateY(-2px);
+  }
+  .ante-tier:disabled,
+  .ante-tier.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+  .ante-tier .tier-name {
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: 0.4px;
+    color: var(--gold);
+  }
+  .ante-tier .tier-amount {
+    font-size: 22px;
+    font-weight: 900;
+    margin-top: 6px;
+    color: var(--text);
+  }
+  .ante-tier .tier-desc {
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 4px;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+  }
+  .ante-foot {
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.5;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    padding-top: 12px;
+    margin-top: 6px;
+  }
+  .ante-foot a { color: var(--gold); text-decoration: none; }
+  @media (max-width: 480px) {
+    .ante-tiers { grid-template-columns: 1fr; }
+    .ante-btn { font-size: 11px; padding: 5px 10px; }
+  }
+
   /* Modal */
   .modal-overlay {
     position: fixed;
@@ -805,6 +886,7 @@
     <div class="header-right">
       <button class="help-btn" id="openHelpBtn" title="How this trainer works" aria-label="Help">?</button>
       <button class="lb-btn" id="openLbBtn" title="View the weekly leaderboard">🏆 Leaderboard</button>
+      <button class="ante-btn" id="openAnteBtn" title="Support the trainer">♣ Ante</button>
       <div class="score">Score <b id="correct">0</b> / <b id="total">0</b><span class="pct" id="pct"></span></div>
     </div>
   </header>
@@ -931,6 +1013,34 @@
   <div class="modal-card">
     <button class="modal-close" id="closeLbBtn" aria-label="Close">✕ Close</button>
     <div id="lbModalBody" class="leaderboard"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="anteModal" role="dialog" aria-modal="true" aria-labelledby="anteModalTitle">
+  <div class="modal-card">
+    <button class="modal-close" id="closeAnteBtn" aria-label="Close">✕ Close</button>
+    <h3 id="anteModalTitle" style="margin:0 0 8px; color:var(--gold); font-size:17px;">Post an Ante</h3>
+    <p class="ante-intro">Liked the trainer? Support the sheep who built it.</p>
+    <div class="ante-tiers">
+      <a class="ante-tier" id="tierFish" href="#" target="_blank" rel="noopener">
+        <div class="tier-name">Fish</div>
+        <div class="tier-amount">$1</div>
+        <div class="tier-desc">Splashy</div>
+      </a>
+      <a class="ante-tier" id="tierDonkey" href="#" target="_blank" rel="noopener">
+        <div class="tier-name">Donkey</div>
+        <div class="tier-amount">$5</div>
+        <div class="tier-desc">Stubborn</div>
+      </a>
+      <a class="ante-tier" id="tierShark" href="#" target="_blank" rel="noopener">
+        <div class="tier-name">Shark</div>
+        <div class="tier-amount">$10</div>
+        <div class="tier-desc">Apex</div>
+      </a>
+    </div>
+    <div class="ante-foot">
+      Payments are handled securely by <b>Stripe</b>. You'll be taken to a Stripe-hosted checkout page — no card details ever touch this site.
+    </div>
   </div>
 </div>
 
@@ -1171,6 +1281,20 @@ const CLOUD = {
   masterKey: '$2a$10$iC.WYZbTN5V1edfhziW18.ggOlJpblLMiAfD2myHYgqpm/Bfb9hCK',
 };
 function cloudEnabled() { return !!(CLOUD.binId && CLOUD.masterKey); }
+
+/* ==========================================================
+   Ante / tip jar (Stripe Payment Links)
+   ----------------------------------------------------------
+   Create three Stripe Payment Links in the Stripe Dashboard
+   (Product catalog → Payment links) for $1, $5, and $10
+   one-time payments. Paste each generated URL below.
+   Leave any field blank to grey that tier out.
+   ========================================================== */
+const TIP_LINKS = {
+  fish:   '',   // e.g. 'https://buy.stripe.com/xxxxxxxxxxxxxxxx'
+  donkey: '',
+  shark:  '',
+};
 
 /* ==========================================================
    Sarcasm kit — variety keeps a 20-hand test from feeling scripted
@@ -2326,6 +2450,42 @@ document.getElementById('helpModal').addEventListener('click', (e) => {
   if (e.target.id === 'helpModal') closeHelpModal();
 });
 
+/* Ante / tip jar modal wiring */
+function applyTipLinks() {
+  const map = [
+    { id: 'tierFish',   url: TIP_LINKS.fish   },
+    { id: 'tierDonkey', url: TIP_LINKS.donkey },
+    { id: 'tierShark',  url: TIP_LINKS.shark  }
+  ];
+  for (const { id, url } of map) {
+    const el = document.getElementById(id);
+    if (!el) continue;
+    if (url && /^https?:\/\//.test(url)) {
+      el.setAttribute('href', url);
+      el.classList.remove('disabled');
+      el.removeAttribute('aria-disabled');
+    } else {
+      el.setAttribute('href', '#');
+      el.classList.add('disabled');
+      el.setAttribute('aria-disabled', 'true');
+      el.setAttribute('title', 'Payment link not configured yet');
+    }
+  }
+}
+function openAnteModal() { applyTipLinks(); document.getElementById('anteModal').classList.add('show'); }
+function closeAnteModal() { document.getElementById('anteModal').classList.remove('show'); }
+document.getElementById('openAnteBtn').addEventListener('click', openAnteModal);
+document.getElementById('closeAnteBtn').addEventListener('click', closeAnteModal);
+document.getElementById('anteModal').addEventListener('click', (e) => {
+  if (e.target.id === 'anteModal') closeAnteModal();
+});
+// Guard clicks on disabled tiers so they don't navigate to '#'.
+document.querySelectorAll('.ante-tier').forEach(el => {
+  el.addEventListener('click', (e) => {
+    if (el.classList.contains('disabled')) { e.preventDefault(); }
+  });
+});
+
 document.addEventListener('keydown', (e) => {
   // Escape closes any open modal
   if (e.key === 'Escape') {
@@ -2335,6 +2495,10 @@ document.addEventListener('keydown', (e) => {
     }
     if (document.getElementById('helpModal').classList.contains('show')) {
       closeHelpModal();
+      return;
+    }
+    if (document.getElementById('anteModal').classList.contains('show')) {
+      closeAnteModal();
       return;
     }
   }
