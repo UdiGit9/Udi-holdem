@@ -1867,13 +1867,8 @@ function renderActions(m) {
       <button class="btn btn-check" data-action="check">Check</button>
       <button class="btn btn-bet" data-action="bet">Bet<span class="sub-label">${m === 'river_barrel' ? 'value' : (m === 'turn_barrel' ? 'barrel' : 'c-bet')}</span></button>`;
   }
-  // Re-insert the circular Next button right after the first action button
-  // (after Fold in 3-btn modes, after Check in 2-btn modes).
-  const firstBtn = row.firstElementChild;
-  if (firstBtn) {
-    if (firstBtn.nextSibling) row.insertBefore(_nextBtnRef, firstBtn.nextSibling);
-    else row.appendChild(_nextBtnRef);
-  }
+  // Re-insert the circular Next button at the far right of the action row.
+  row.appendChild(_nextBtnRef);
   row.querySelectorAll('.btn[data-action]').forEach(btn => {
     btn.addEventListener('click', () => handleAnswer(btn.dataset.action));
   });
