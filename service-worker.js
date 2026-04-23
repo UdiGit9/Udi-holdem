@@ -5,7 +5,7 @@
 //   - For the JSONBin leaderboard API and Stripe links: always go to the network (no caching).
 // Bump CACHE_VERSION whenever you ship a meaningful change so old clients pick up the new shell.
 
-const CACHE_VERSION = 'v2-2026-04-23';
+const CACHE_VERSION = 'v3-2026-04-23';
 const CACHE_NAME = 'uh-trainer-' + CACHE_VERSION;
 
 const PRECACHE_URLS = [

@@ -1,4 +1,5 @@
 {
+  "id": "/",
   "name": "Udi's Hold'em Trainer",
   "short_name": "Hold'em Trainer",
   "description": "A 9-max Texas Hold'em GTO-style trainer for drilling preflop and postflop decisions.",
