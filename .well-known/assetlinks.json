@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "com.udiholdem.trainer",
+        "sha256_cert_fingerprints": ["E5:71:4E:19:6A:17:36:CB:2A:A3:8F:F6:01:D3:67:30:75:65:A7:99:8B:D1:E0:AE:77:97:2D:6C:5D:CB:55:C8"]
+      }
+    }]
