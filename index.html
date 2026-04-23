@@ -448,11 +448,11 @@
   }
 
   .actions {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
+    display: flex;
     gap: 10px;
+    align-items: stretch;
   }
-  .actions.two-btn { grid-template-columns: 1fr 1fr; }
+  .actions .btn { flex: 1 1 0; min-width: 0; }
   .btn {
     padding: 14px 10px;
     font-size: 15px;
@@ -512,19 +512,35 @@
   }
 
   .next-btn {
-    display: block;
-    margin: 16px auto 0;
-    padding: 10px 24px;
-    background: var(--gold);
+    flex: 0 0 auto;
+    width: 56px;
+    height: 56px;
+    padding: 0;
+    background: radial-gradient(circle at 35% 30%, #fff3c4, var(--gold) 55%, #d9a92d);
     color: #0a1f17;
-    border: none;
-    border-radius: 8px;
-    font-weight: 700;
-    font-size: 14px;
+    border: 2px solid #b98a1a;
+    border-radius: 50%;
+    font-weight: 900;
+    font-size: 22px;
+    line-height: 1;
     cursor: pointer;
-    letter-spacing: 0.5px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.4);
+    transition: transform 0.08s, filter 0.15s;
+    align-self: center;
+    animation: nextPulse 1.6s ease-in-out infinite;
   }
-  .next-btn:hover { filter: brightness(1.05); }
+  .next-btn:hover { filter: brightness(1.08); }
+  .next-btn:active { transform: scale(0.95); }
+  @keyframes nextPulse {
+    0%, 100% { box-shadow: 0 4px 10px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.4), 0 0 0 0 rgba(245,197,66,0.55); }
+    50%      { box-shadow: 0 4px 10px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.4), 0 0 0 8px rgba(245,197,66,0); }
+  }
+  @media (max-width: 480px) {
+    .next-btn { width: 48px; height: 48px; font-size: 18px; }
+  }
 
   /* Results */
   .results-wrap {
@@ -932,7 +948,7 @@
       <div class="hand-label">Hero holds: <b id="handLabel">—</b><span class="info-tag" id="handTag" style="display:none"></span></div>
       <div class="actions" id="actionsRow"></div>
       <div class="feedback" id="feedback"></div>
-      <button class="next-btn" id="nextBtn" style="display:none">Next Hand →</button>
+      <button class="next-btn" id="nextBtn" title="Next hand" aria-label="Next hand" style="display:none">›</button>
     </div>
   </div>
 
@@ -1824,32 +1840,39 @@ function renderTable(state) {
   renderActions(m);
 }
 
+// Cache the next button so we can re-attach it each render (innerHTML wipes it).
+const _nextBtnRef = document.getElementById('nextBtn');
+
 function renderActions(m) {
   const row = document.getElementById('actionsRow');
   row.innerHTML = '';
+  row.className = 'actions';
   if (m === 'rfi') {
-    row.className = 'actions';
     row.innerHTML = `
       <button class="btn btn-fold" data-action="fold">Fold</button>
       <button class="btn btn-call" data-action="call">Call</button>
       <button class="btn btn-raise" data-action="raise">Raise<span class="sub-label">open 2.5bb</span></button>`;
   } else if (m === 'vs_raise') {
-    row.className = 'actions';
     row.innerHTML = `
       <button class="btn btn-fold" data-action="fold">Fold</button>
       <button class="btn btn-call" data-action="call">Call</button>
       <button class="btn btn-raise" data-action="raise">3-Bet<span class="sub-label">raise</span></button>`;
   } else if (m === 'flop_defender') {
-    row.className = 'actions';
     row.innerHTML = `
       <button class="btn btn-fold" data-action="fold">Fold</button>
       <button class="btn btn-call" data-action="call">Call</button>
       <button class="btn btn-raise" data-action="raise">Raise<span class="sub-label">check-raise</span></button>`;
   } else {
-    row.className = 'actions two-btn';
     row.innerHTML = `
       <button class="btn btn-check" data-action="check">Check</button>
       <button class="btn btn-bet" data-action="bet">Bet<span class="sub-label">${m === 'river_barrel' ? 'value' : (m === 'turn_barrel' ? 'barrel' : 'c-bet')}</span></button>`;
+  }
+  // Re-insert the circular Next button right after the first action button
+  // (after Fold in 3-btn modes, after Check in 2-btn modes).
+  const firstBtn = row.firstElementChild;
+  if (firstBtn) {
+    if (firstBtn.nextSibling) row.insertBefore(_nextBtnRef, firstBtn.nextSibling);
+    else row.appendChild(_nextBtnRef);
   }
   row.querySelectorAll('.btn[data-action]').forEach(btn => {
     btn.addEventListener('click', () => handleAnswer(btn.dataset.action));
@@ -1997,8 +2020,10 @@ function handleAnswer(userAction) {
 
   document.querySelectorAll('.btn[data-action]').forEach(b => b.disabled = true);
   const nb = document.getElementById('nextBtn');
-  nb.style.display = 'block';
-  nb.textContent = inTestFinal ? 'See Results →' : 'Next Hand →';
+  nb.style.display = 'inline-flex';
+  nb.textContent = inTestFinal ? '✓' : '›';
+  nb.title = inTestFinal ? 'See results' : 'Next hand';
+  nb.setAttribute('aria-label', inTestFinal ? 'See results' : 'Next hand');
 }
 
 function explainDecision(state, userAction, correct) {
