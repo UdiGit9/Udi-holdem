@@ -1565,15 +1565,37 @@ function evaluatePostflop(holeStrs, boardStrs) {
     return 'weak';
   }
 
+  // For made hands that CAN exist purely on the board, distinguish between
+  // "hero contributes" (real value) and "board plays" (everyone has the same
+  // five cards). This prevents the classifier from inflating strength on boards
+  // like A222 (trips), 45678 (straight), or a monotone flop+turn+river flush.
   if (flushSuit && straightTop !== null && heroContribFlush) category = 'straight_flush';
-  else if (quadRank) category = 'quads';
-  else if (tripRanks.length >= 1 && (tripRanks.length >= 2 || pairRanks.length >= 1)) category = 'full_house';
+  else if (quadRank) {
+    const heroHasQuad = heroRanks.includes(Number(quadRank));
+    category = heroHasQuad ? 'quads' : 'board_quads';
+  }
+  else if (tripRanks.length >= 1 && (tripRanks.length >= 2 || pairRanks.length >= 1)) {
+    const tR = tripRanks[0];
+    const pR = (tripRanks.length >= 2 ? tripRanks[1] : pairRanks[0]);
+    const heroContribFH = heroRanks.includes(tR) || heroRanks.includes(pR);
+    category = heroContribFH ? 'full_house' : 'board_full_house';
+  }
   else if (flushSuit && heroContribFlush) category = 'flush';
-  else if (straightTop !== null) category = 'straight';
+  else if (flushSuit) category = 'board_flush';
+  else if (straightTop !== null) {
+    let heroContribStraight = false;
+    const window = [straightTop, straightTop - 1, straightTop - 2, straightTop - 3, straightTop - 4];
+    for (const r of window) {
+      if (r === -1) { if (heroRanks.includes(12)) { heroContribStraight = true; break; } }
+      else if (heroRanks.includes(r)) { heroContribStraight = true; break; }
+    }
+    category = heroContribStraight ? 'straight' : 'board_straight';
+  }
   else if (tripRanks.length >= 1) {
     const t = tripRanks[0];
     if (heroIsPocket && heroRanks[0] === t) category = 'set';
-    else category = 'trips';
+    else if (heroRanks.includes(t)) category = 'trips';
+    else category = 'board_trips';
   } else if (pairRanks.length >= 2) {
     const heroContrib = pairRanks.filter(r => heroRanks.includes(r));
     if (heroIsPocket) {
@@ -1625,6 +1647,11 @@ function categoryLabel(cat, kicker) {
   const map = {
     straight_flush: 'Straight flush', quads: 'Quads', full_house: 'Full house',
     flush: 'Flush', straight: 'Straight', set: 'Set', trips: 'Trips',
+    board_quads: 'Quads on board',
+    board_full_house: 'Full house on board',
+    board_flush: 'Flush on board',
+    board_straight: 'Straight on board',
+    board_trips: 'Trips on board',
     two_pair: 'Two pair', two_pair_overpair: 'Overpair + board pair',
     overpair: 'Overpair', top_pair: 'Top pair', middle_pair: 'Middle pair',
     bottom_pair: 'Bottom pair', under_pair: 'Underpair',
@@ -1677,6 +1704,12 @@ function textureLabel(tex) {
 const STRONG_VALUE = new Set([
   'straight_flush', 'quads', 'full_house', 'flush', 'straight',
   'set', 'trips', 'two_pair', 'two_pair_overpair', 'overpair'
+]);
+// Hands whose "strength" comes entirely from the board. Treated as weak because
+// the opponent has the same five cards — the pot is a chop against anything
+// that also plays the board, and we're dominated by any real contribution.
+const BOARD_DOMINANT = new Set([
+  'board_quads', 'board_full_house', 'board_flush', 'board_straight', 'board_trips'
 ]);
 const TOP_PAIR_STRONG_KICKER = new Set(['top', 'good']);
 
@@ -2154,6 +2187,19 @@ function explainDecision(state, userAction, correct) {
         body = `Hero-barreling the river with <b>${catLabel}${drawStr}</b>? BB flatted twice — their range is pairs that beat or tie you. Check it down and collect the chop.`;
       else
         body = `You checked strong value on the river? That's a "good hand!" from villain and a "bad session" from your bankroll. Bet.`;
+    }
+
+    // Board-dominant override: when the "made hand" is really the board playing
+    // itself (e.g. A222 with 87), make that explicit so the feedback doesn't
+    // read as if hero actually has value.
+    if (BOARD_DOMINANT.has(ev.category)) {
+      if (userAction === 'bet' && correct !== 'bet') {
+        body = `<b>${catLabel}</b> on <b>${texLabel}</b>. Look closer — the "made hand" is sitting on the board. Your hole cards contribute nothing to those five, so everyone who called gets the same hand you do. Against an actual calling range (aces, pocket pairs, anything with real equity) you're chopping at best and dominated at worst. Bet/fold is a losing game here; check and take free showdown.`;
+      } else if (userAction === 'check' && correct === 'check') {
+        body = `<b>${catLabel}</b> on <b>${texLabel}</b> — nicely read. Hero's best five cards are the same as villain's, so there's nothing to value-bet. Checking gets you to showdown without growing a pot you can only chop or lose.`;
+      } else if (userAction === 'fold' && correct === 'fold') {
+        body = `<b>${catLabel}</b> on <b>${texLabel}</b>. Correctly folded — the board's "trips" or "straight" doesn't belong to you, and villain's c-bet range has the kickers (or actual hand) that crushes a pure board-play. Save the chips.`;
+      }
     }
   }
 
