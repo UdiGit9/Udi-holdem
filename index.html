@@ -2201,6 +2201,27 @@ function explainDecision(state, userAction, correct) {
         body = `<b>${catLabel}</b> on <b>${texLabel}</b>. Correctly folded — the board's "trips" or "straight" doesn't belong to you, and villain's c-bet range has the kickers (or actual hand) that crushes a pure board-play. Save the chips.`;
       }
     }
+
+    // Underpair-on-paired-board override: technically "two pair" because the
+    // board paired, but hero's pocket pair sits BELOW the board pair, so every
+    // Tx in villain's range has trips and every higher pocket pair beats us.
+    // When this barrels, it's a semi-bluff riding on a draw — not a value bet.
+    // Frame the copy so the user doesn't walk away thinking the made hand is
+    // strong. Same shape as BOARD_DOMINANT but softer (we DO have some equity).
+    if (ev.category === 'under_pair_w_board_pair') {
+      const hasDraw = ev.draws.flushDraw || ev.draws.oesd || ev.draws.gutshot;
+      if (userAction === 'check' && correct === 'bet' && hasDraw) {
+        body = `<b>${catLabel}${drawStr}</b> on <b>${texLabel}</b>. The board pair makes this look like two pair, but your underpair beneath it contributes almost nothing — every Tx in villain's range has trips. The real reason to fire is the <b>${drawNotes.join(' + ') || 'draw'}</b>: improvement equity plus fold equity against ace-highs and busted gutshots. Checking realizes neither. Semi-bluff.`;
+      } else if (userAction === 'bet' && correct === 'bet' && hasDraw) {
+        body = `Semi-bluff barrel. <b>${catLabel}${drawStr}</b> on <b>${texLabel}</b>. The underpair beneath the board pair isn't real value — but the <b>${drawNotes.join(' + ') || 'draw'}</b> gives you the equity, and firing folds out the ace-highs that floated the flop. Aggression with a backup plan.`;
+      } else if (userAction === 'bet' && correct === 'check') {
+        body = `<b>${catLabel}${drawStr}</b> on <b>${texLabel}</b>. The "two pair" reading is misleading — the board did the pairing, your tiny pocket pair did not. Every Tx in villain's range has trips. Without a draw to back the fire, this is just inflating a pot where you're already crushed by their continuing range. Check and re-evaluate the river.`;
+      } else if (userAction === 'check' && correct === 'check') {
+        body = `<b>${catLabel}${drawStr}</b> on <b>${texLabel}</b> — nicely read. The board paired itself; your underpair is bluff-catcher territory at best. Free showdown beats betting into a range that's already ahead.`;
+      } else if (userAction === 'fold' && correct === 'fold') {
+        body = `<b>${catLabel}${drawStr}</b> on <b>${texLabel}</b>. Correctly folded — your two pair is mostly the board's two pair, and villain's bet range on a paired board is well-kickered. Save the chips, study the spot, move on.`;
+      }
+    }
   }
 
   return { text: `${opener} ${body}`, tags };
