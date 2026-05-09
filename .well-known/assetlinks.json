@@ -1,8 +1,13 @@
-[{
-      "relation": ["delegate_permission/common.handle_all_urls"],
-      "target": {
-        "namespace": "android_app",
-        "package_name": "com.udiholdem.trainer",
-        "sha256_cert_fingerprints": ["E5:71:4E:19:6A:17:36:CB:2A:A3:8F:F6:01:D3:67:30:75:65:A7:99:8B:D1:E0:AE:77:97:2D:6C:5D:CB:55:C8"]
-      }
-    }]
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.udiholdem.trainer",
+      "sha256_cert_fingerprints": [
+        "3D:38:C7:DB:5D:66:60:55:A7:70:BC:76:01:72:F5:C7:5D:C6:CA:05:E9:5A:7F:DC:D2:49:6E:0E:DD:15:8E:2F",
+        "E5:71:4E:19:6A:17:36:CB:2A:A3:8F:F6:01:D3:67:30:75:65:A7:99:8B:D1:E0:AE:77:97:2D:6C:5D:CB:55:C8"
+      ]
+    }
+  }
+]
